@@ -50,6 +50,25 @@ Static 区「估算逐行精确」的约束不受影响。diff / 搜索 / 读文
 **验证**：单测 365 项全绿（新增 terminal 紧凑卡高度与截断助手 4 项、Ctrl+O
 面板含完整命令 2 项）；`pnpm typecheck`、`pnpm lint`、`pnpm build` 通过。
 
+### 维护：cordis 钉死精确 4.0.2——fresh install 不再可能拉入 4.0.3+ 的语义变更
+
+- **动机**：cordis 于 2026-09-22 连发 4.0.3 / 4.0.4，其中 4.0.4 把
+  `fiber.update()` 签名从 `void | Promise<void>` 改为同步 `void`，
+  `internal/update` waterfall 钩子的 `next()` 也不再返回 Promise——对深度
+  依赖该 waterfall 的 dsh 属行为级变更。dsh 官方随即在同日的 `0.1.5-rc.3`
+  把对 cordis 的依赖从 `^4.0.2` 收紧为精确 `4.0.2`（经 tarball 逐文件比对
+  确认：rc.3 相对我们所用的 rc.2，全部 19 个包的代码与类型声明逐字节相同，
+  唯一实质就是这个钉版），明确回避该区间。fx-tui 原声明 `^4.0.2`，在
+  lockfile 缺失的全新安装环境（npm 发包后的用户侧正是如此）会解析到 4.0.4
+- **机制**：package.json 的 peerDependencies 与 devDependencies 两处
+  `@deepseek-ai/cordis` 由 `^4.0.2` 改为精确 `4.0.2`，与 dsh 官方钉法
+  对齐；lockfile 仅 specifier 一行同步，解析版本不变（本就 4.0.2），无包
+  实际变动。我们代码未直接调用 `fiber.update()` / `internal/update`，但
+  dsh 全家在内部使用，宿主与 bundle 必须同版本
+- **影响面**：无行为变化；dsh 家族维持 `0.1.5-rc.2`——rc.3 为纯元数据发布
+  无代码收益，留待全局 dsh 宿主升级时连同 peer 钉版一并同步跟进
+- **验证**：`pnpm typecheck`、`pnpm build` 通过；单测 33 文件 365 项全绿
+
 ## [0.34.0] - 2026-09-21
 
 ### 功能：流式输出原地生长——动态区重排，消除「从底部跳到顶部」的顿挫

@@ -14,7 +14,7 @@
 把下面这句话复制给任意终端编码 agent（Claude Code、ZCode 等），它会读取安装指南、自动装好并验证：
 
 ```text
-请读取 https://raw.githubusercontent.com/xianglifei/fx-tui/main/docs/install.md ，严格按其中的步骤帮我把 fx-tui 完整装好并验证可用；任何一步失败就停下，把错误原文完整告诉我，不要自行猜测或跳过。
+请读取 https://raw.githubusercontent.com/xianglifei/dsh-tui-fx/main/docs/install.md ，严格按其中的步骤帮我把 fx-tui 完整装好并验证可用；任何一步失败就停下，把错误原文完整告诉我，不要自行猜测或跳过。
 ```
 
 详细步骤与手动安装备查：[docs/install.md](docs/install.md)。

@@ -16,7 +16,7 @@ fx-tui 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)�
 ```text
 帮我安装 fx-tui——DeepSeek Harness（dsh）的交互式终端界面（一个树外 bundle 插件）。
 
-仓库地址：https://github.com/xianglifei/fx-tui
+仓库地址：https://github.com/xianglifei/dsh-tui-fx
 
 请严格按以下顺序执行，每一步完成后再进行下一步；任何一步失败就停下，
 把错误原文完整告诉我，不要自行猜测或跳过：
@@ -45,7 +45,7 @@ fx-tui 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)�
    并 chmod 600 ~/.dsh/.credentials.yaml）。
 
 5. 克隆并构建 fx-tui：
-   git clone https://github.com/xianglifei/fx-tui.git ~/fx-tui
+   git clone https://github.com/xianglifei/dsh-tui-fx.git ~/fx-tui
    cd ~/fx-tui && pnpm install && pnpm run build
 
 6. 安装为 dsh 的 fx profile（树外插件，官方机制）：
@@ -89,7 +89,7 @@ chmod 600 ~/.dsh/.credentials.yaml
 **第 3 步：安装 fx-tui：**
 
 ```sh
-git clone https://github.com/xianglifei/fx-tui.git && cd fx-tui
+git clone https://github.com/xianglifei/dsh-tui-fx.git && cd dsh-tui-fx
 pnpm install && pnpm run build
 dsh plugin --profile fx add "$(pwd)"
 cp bin/fx /opt/homebrew/bin/fx   # 或任意 PATH 目录（Linux 常用 /usr/local/bin）

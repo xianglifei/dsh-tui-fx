@@ -2,8 +2,8 @@
 
 fx-tui 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（dsh）的树外 bundle 插件。装好它一共涉及四件事：
 
-- Node.js >= 22.19 和 pnpm
-- DeepSeek Harness 本体（dsh CLI）0.1.1-rc.2 或更高 —— fx-tui 的运行时依赖，没有它无法启动
+- Node.js >= 24.9.0 和 pnpm（dsh 0.2.2 起硬要求 Node 24.9）
+- DeepSeek Harness 本体（dsh CLI）0.2.2-rc.1 或更高 —— fx-tui 的运行时依赖，没有它无法启动
 - DeepSeek API key（去 [platform.deepseek.com](https://platform.deepseek.com) 申请）
 - 克隆并构建 fx-tui，注册为 dsh 的 fx profile
 
@@ -21,9 +21,9 @@ fx-tui 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)�
 请严格按以下顺序执行，每一步完成后再进行下一步；任何一步失败就停下，
 把错误原文完整告诉我，不要自行猜测或跳过：
 
-1. 检查并安装 Node.js >= 22.19（fx-tui 和 dsh 都依赖它）：
+1. 检查并安装 Node.js >= 24.9.0（fx-tui 和 dsh 都依赖它）：
    node --version
-   若未安装或版本过低：macOS 用 brew install node@22（或用 nvm install 22），
+   若未安装或版本过低：macOS 用 brew install node@24（或用 nvm install 24），
    Linux 用系统包管理器或 nvm；装完重开 shell 再验证一次。
 
 2. 检查并安装 pnpm：
@@ -33,8 +33,8 @@ fx-tui 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)�
 3. 检查并安装 DeepSeek Harness 本体（dsh CLI）：
    dsh --version
    若未安装：npm install -g @deepseek-ai/dsh，装完再跑一次 dsh --version 确认
-   版本不低于 0.1.1-rc.2。这是 fx-tui 的运行时本体，没有它 fx 无法启动。
-   注意：dsh 目前以 rc 预发布版滚动发布（如 0.1.1-rc.2），按 semver 规则
+   版本不低于 0.2.2-rc.1。这是 fx-tui 的运行时本体，没有它 fx 无法启动。
+   注意：dsh 目前以 rc 预发布版滚动发布（如 0.2.2-rc.1），按 semver 规则
    rc 版小于同号正式版属正常现象，不要因 -rc 后缀判定"版本不满足"而中止，
    也不要自行放宽或收紧版本条件。
 
@@ -70,9 +70,9 @@ fx-tui 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)�
 没有 dsh 就无法运行——这是最容易被忽略的一步：
 
 ```sh
-node --version          # 需 >= 22.19；没有先装 Node.js
+node --version          # 需 >= 24.9.0；没有先装 Node.js
 npm install -g @deepseek-ai/dsh
-dsh --version           # 确认 >= 0.1.1-rc.2（dsh 目前均为 rc 预发布版，属正常）
+dsh --version           # 确认 >= 0.2.2-rc.1（dsh 目前均为 rc 预发布版，属正常）
 ```
 
 **第 2 步：配置 DeepSeek API key**（没有的话去

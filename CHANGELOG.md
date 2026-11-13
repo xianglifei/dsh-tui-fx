@@ -3,6 +3,26 @@
 本项目的所有显著变更记录于此。版本格式遵循 [SemVer](https://semver.org/)，
 条目参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [0.36.6] - 2026-11-13
+
+### 发布链路：npm trusted publishing 上线（本版用于验证）
+
+npm 侧已登记 trusted publisher（GitHub Actions、workflow `publish.yml`、仓库
+`xianglifei/dsh-tui-fx`、权限 publish）。本版没有功能改动，两个用途：
+
+- 验证「推 `v*` tag → Actions → OIDC 换取短期凭证 → `npm publish`」这条链路；
+- 把 npm 包页的 README 同步到最新（0.36.5 之后补的 npm 徽章、安装命令与页面入口）。
+
+`npm publish` 不再需要任何 token：workflow 用 `id-token: write` 换发短期凭证，
+provenance（构建来源证明）自动附带；workflow 里先跑 lint / typecheck / test，
+并校验 tag 与 `package.json` 版本一致。
+
+### 验证
+
+- 本地：`pnpm lint` 0/0、双 tsconfig `typecheck` 0 error、`pnpm test` 383 用例、
+  `pnpm run build` 通过
+- Actions 的 `Publish` 运行结果见本次 tag 推送（成功后 npm 上 `latest` 指向 0.36.6）
+
 ## [0.36.5] - 2026-11-13
 
 ### 改名：npm 包 `fx-tui` → `dsh-tui-fx`

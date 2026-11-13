@@ -44,6 +44,8 @@ export interface StatusBarProps {
   contextTokens: number
   contextWindow?: number
   childAgents: number
+  /** Live background jobs owned by this session; 0 hides the chip. */
+  jobs: number
   /** Reasoning effort carried by the latest request ('' when none/default). */
   effortLabel: string
   /** Live LLM retry wait; null when the current request is not backing off. */
@@ -123,6 +125,7 @@ export function StatusBar(props: StatusBarProps): ReactElement {
   // the detail, before it is allowed to break the line.
   const spinnerCells = displayWidth(active ? frame : '●')
   let left = ` ${label}`
+  if (props.jobs > 0) left += ` · ⚙×${props.jobs}`
   if (props.childAgents > 0) left += ` · 🌱×${props.childAgents}`
   const withDetail = props.detail !== '' ? `${left} · ${props.detail}` : left
   const withReasoning = props.phase === 'thinking' && props.reasoningChars > 0

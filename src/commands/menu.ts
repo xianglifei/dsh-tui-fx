@@ -32,6 +32,8 @@ export const builtinCommands: readonly MenuEntry[] = [
   { name: 'rewind', description: '回退到某一轮之前（丢弃该轮及以后）', kind: 'builtin' },
   { name: 'tree', description: '查看会话家族树（fork / clear 的血缘）', kind: 'builtin' },
   { name: 'trace', description: '查看当前会话的事件轨迹', kind: 'builtin' },
+  { name: 'jobs', description: '后台任务：列表 / 输出 / 取消（/jobs kill <id>）', kind: 'builtin' },
+  { name: 'agents', description: '子代理：运行状态与详情（/agents <id>）', kind: 'builtin' },
   { name: 'skills', description: '列出可用技能与来源目录', kind: 'builtin' },
   { name: 'provider', description: '查看已注册 provider 与当前路由', kind: 'builtin' },
   { name: 'login', description: '查看 API 凭证状态（不接受密钥参数）', kind: 'builtin' },

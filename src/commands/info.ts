@@ -29,6 +29,7 @@ export function runHelp(c: CommandCtx): void {
     '  /config 设置（权限/更新/通知/自动压缩） · /theme 主题 · /statusline 状态栏 · /export 导出 · /copy 复制最后回复 ·',
     '  /edit 外部编辑器 · /image <路径…> 附加图片 · /init 生成 AGENTS.md 骨架 · /restart 重启并恢复当前会话 ·',
     '  /update 升级自身 · /exit 退出',
+    '任务与并行：/jobs [id 前缀] 后台任务（kill 取消） · /agents [id 前缀] 子代理运行状态',
     '会话生命周期：/new 新会话 · /clear 清空（历史留在父会话） · /resume <id|关键词> 恢复 ·',
     '  /fork 复制 · /rewind 回退到某轮之前 · /tree 血缘树 · /trace 事件轨迹',
     '环境与账户：/skills 技能 · /provider provider 与路由 · /login 凭证状态 · /logout 清除指引 · /balance 余额',

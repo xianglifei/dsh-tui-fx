@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fx-tui · 不离开终端，把活干完</title>
+<meta name="description" content="fx-tui 是 DeepSeek Harness 的终端界面。一个 fx 命令，接着你正在用的 shell、项目目录和快捷键：模型在你敲命令的地方读代码、跑测试、改文件。">
+<meta name="theme-color" content="#ffffff">
+<link rel="canonical" href="https://xianglifei.github.io/dsh-tui-fx/">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="fx-tui">
+<meta property="og:title" content="fx-tui · 不离开终端，把活干完">
+<meta property="og:description" content="DeepSeek Harness 的终端界面。审批长在命令下方，! 命令输出自动进上下文，长输出默认折成一行。">
+<meta property="og:image" content="https://xianglifei.github.io/dsh-tui-fx/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://xianglifei.github.io/dsh-tui-fx/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="fx-tui · 不离开终端，把活干完">
+<meta name="twitter:description" content="DeepSeek Harness 的终端界面。审批长在命令下方，! 命令输出自动进上下文，长输出默认折成一行。">
+<meta name="twitter:image" content="https://xianglifei.github.io/dsh-tui-fx/og.png">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "fx-tui",
+  "alternateName": "dsh-tui-fx",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "macOS",
+  "softwareVersion": "0.36.0",
+  "description": "DeepSeek Harness（dsh）的交互式终端界面，一个树外 bundle 插件。",
+  "url": "https://xianglifei.github.io/dsh-tui-fx/",
+  "codeRepository": "https://github.com/xianglifei/dsh-tui-fx",
+  "license": "https://opensource.org/licenses/MIT",
+  "author": { "@type": "Person", "name": "xianglifei" }
+}
+</script>
+
+<script>
+  // 入口动画开关：app.js 没跑起来时，2.5 秒后把内容全部放出来。
+  (function () {
+    document.documentElement.classList.add('js');
+    setTimeout(function () {
+      if (!window.__siteReady) document.documentElement.classList.remove('js');
+    }, 2500);
+  })();
+</script>
+</head>
+<body>
+
+<a class="skip-link" href="#main">跳到正文</a>
+
+<svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-prompt" viewBox="0 0 24 24">
+    <path d="M5 7.5 10.5 12 5 16.5M12.5 17h6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-arrow-right" viewBox="0 0 24 24">
+    <path d="M5 12h13M13 6.5l5.5 5.5L13 17.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-arrow-down" viewBox="0 0 24 24">
+    <path d="M12 5v13M6.5 12.5L12 18l5.5-5.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-check" viewBox="0 0 24 24">
+    <path d="M5 12.5l4.5 4.5L19 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-github" viewBox="0 0 24 24">
+    <path d="M12 2.6a9.4 9.4 0 0 0-3 18.3c.5.1.6-.2.6-.5v-1.7c-2.6.6-3.1-1.1-3.1-1.1-.4-1.1-1-1.4-1-1.4-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.8.8.1-.6.3-1.1.6-1.3-2.1-.2-4.3-1-4.3-4.6 0-1 .4-1.9 1-2.5-.1-.2-.4-1.2.1-2.5 0 0 .8-.3 2.6 1a9 9 0 0 1 4.7 0c1.8-1.3 2.6-1 2.6-1 .5 1.3.2 2.3.1 2.5.6.6 1 1.5 1 2.5 0 3.6-2.2 4.4-4.3 4.6.3.3.6.9.6 1.9v2.8c0 .3.2.6.6.5A9.4 9.4 0 0 0 12 2.6Z" fill="currentColor"/>
+  </symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24">
+    <rect x="8.5" y="8.5" width="11" height="11" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+    <path d="M15.5 5.5h-9a2 2 0 0 0-2 2v9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-terminal" viewBox="0 0 24 24">
+    <rect x="3.4" y="4.6" width="17.2" height="14.8" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    <path d="M6.8 9.2 9.4 11.8 6.8 14.4M11.6 14.8h4.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24">
+    <path d="M12 3.2 19 6v5.6c0 4.2-2.8 7.4-7 9.2-4.2-1.8-7-5-7-9.2V6l7-2.8Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M8.9 12.1 11.2 14.4l4-4.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-fold" viewBox="0 0 24 24">
+    <path d="M4 5.5h16M4 12h11M4 18.5h8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M18.4 15.4v5.2M16.2 18.4l2.2 2.2 2.2-2.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24">
+    <path d="M4.4 5.6h15.2v10.2H10.4L6 19.4v-3.6H4.4V5.6Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M8.2 9.4h7.6M8.2 12.6h4.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-palette" viewBox="0 0 24 24">
+    <path d="M12 3.4c4.9 0 8.7 3.6 8.7 8 0 2.6-1.7 4.2-3.9 4.2h-1.6c-1.2 0-2.1.9-2.1 2 0 .6.2 1.1.2 1.7 0 1.2-.9 2.1-2.2 2.1-4.5 0-8-3.7-8-8.2S7.4 3.4 12 3.4Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+    <circle cx="8.6" cy="10" r="1.2" fill="currentColor"/>
+    <circle cx="12" cy="7.6" r="1.2" fill="currentColor"/>
+    <circle cx="15.4" cy="10" r="1.2" fill="currentColor"/>
+  </symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24">
+    <path d="M19.2 12a7.2 7.2 0 1 1-2.4-5.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M19.6 4.6v4.2h-4.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24">
+    <path d="M12 3.5l1.7 4.8 4.8 1.7-4.8 1.7L12 16.5l-1.7-4.8L5.5 10l4.8-1.7L12 3.5Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M18.4 15.4l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="8.3" fill="none" stroke="currentColor" stroke-width="1.6"/>
+    <path d="M12 7.6v5.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    <circle cx="12" cy="16.4" r="1" fill="currentColor"/>
+  </symbol>
+</svg>
+
+<header class="nav" id="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="#top" aria-label="fx-tui 首页">
+      <span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="#i-prompt"/></svg></span>
+      <span class="brand-name">fx-tui</span>
+      <span class="brand-meta">DSH TUI</span>
+    </a>
+    <nav class="nav-links" aria-label="页面导航">
+      <a href="#why">它做什么</a>
+      <a href="#how">怎么干活</a>
+      <a href="#ui">界面</a>
+      <a href="#install">安装</a>
+    </nav>
+    <div class="nav-actions">
+      <span class="nav-version mono">v0.36.0</span>
+      <a class="icon-btn" href="https://github.com/xianglifei/dsh-tui-fx" target="_blank" rel="noreferrer" aria-label="GitHub 仓库">
+        <svg class="icon" aria-hidden="true"><use href="#i-github"/></svg>
+      </a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- 01 · Hero -->
+  <section class="hero" id="top">
+    <div class="wrap hero-inner">
+      <div class="eyebrow reveal">
+        <span class="eyebrow-dot" aria-hidden="true"></span>
+        <span>DEEPSEEK HARNESS TUI</span>
+        <span class="slash" aria-hidden="true">/</span>
+        <span class="mono">v0.36.0</span>
+        <span class="slash" aria-hidden="true">/</span>
+        <span class="mono">macOS</span>
+      </div>
+      <h1 class="reveal">不离开终端，<br>把活干完。</h1>
+      <p class="hero-lead reveal">fx-tui 是 DeepSeek Harness 的终端界面。一个 <code>fx</code> 命令，接着你正在用的 shell、项目目录和快捷键——模型就在你敲命令的地方读代码、跑测试、改文件。</p>
+      <div class="hero-actions reveal">
+        <a class="btn btn-primary" href="#how">看它怎么干活<svg class="icon" aria-hidden="true"><use href="#i-arrow-down"/></svg></a>
+        <a class="btn btn-ghost" href="https://github.com/xianglifei/dsh-tui-fx" target="_blank" rel="noreferrer">
+          <svg class="icon" aria-hidden="true"><use href="#i-github"/></svg>GitHub
+        </a>
+      </div>
+      <div class="hero-proof reveal">
+        <span><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>审批长在命令下方</span>
+        <span><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><code>!</code> 命令直通，输出自动进上下文</span>
+        <span><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>退出净屏，<code>fx --resume</code> 续上</span>
+      </div>
+    </div>
+
+    <figure class="wrap hero-figure reveal">
+      <div class="term" role="img" aria-label="fx-tui 终端界面示意：启动横幅、一次对话、单行工具卡、状态栏与钉底输入框">
+        <div class="term-chrome">
+          <span class="tl tl-r" aria-hidden="true"></span>
+          <span class="tl tl-y" aria-hidden="true"></span>
+          <span class="tl tl-g" aria-hidden="true"></span>
+          <span class="term-title mono">fx — ~/Code/Play</span>
+        </div>
+        <div class="term-body">
+          <div class="banner">
+            <pre class="banner-logo" aria-hidden="true">███████╗ ██╗  ██╗
+██╔════╝ ╚██╗██╔╝
+█████╗   ╚███╔╝
+██╔══╝   ██╔██╗
+██║     ██╔╝ ██╗
+╚═╝     ╚═╝  ╚═╝</pre>
+            <div class="banner-facts">
+              <div class="fact"><span class="fact-k">模 型</span><span class="fact-v">deepseek-official/deepseek-v4-flash</span></div>
+              <div class="fact"><span class="fact-k">版 本</span><span class="fact-v">fx-tui v0.36.0 · dsh 0.2.2-rc.1</span></div>
+              <div class="fact"><span class="fact-k">会 话</span><span class="fact-v dim">session-bf9e90cf-522a</span></div>
+              <div class="fact"><span class="fact-k">目 录</span><span class="fact-v dim">~/Code/Play</span></div>
+              <div class="fact-hint dim">输入消息开始对话 · /help 查看按键与命令</div>
+            </div>
+          </div>
+
+          <div class="t-user"><span class="t-bar" aria-hidden="true">›</span>刚才的测试挂了，帮我看看</div>
+          <div class="t-think"><span class="t-glyph">✻</span> 思考：先定位失败用例 · 6.2s</div>
+          <div class="t-tool">
+            <span class="t-tool-ok">●</span> <span class="t-tool-name">bash</span>
+            <span class="t-tool-cmd">npm test</span>
+            <span class="t-dim">2.4s · exit 1 · 输出 38 行</span>
+            <span class="t-key">Ctrl+O</span>
+          </div>
+          <div class="t-ai">失败在 <code>parse()</code> 的边界判断：空字符串没被当成合法输入。已经把 <code>src/shell-bang.ts</code> 的空值分支补上，再跑一遍？</div>
+          <div class="t-tool">
+            <span class="t-tool-ok">●</span> <span class="t-tool-name">edit</span>
+            <span class="t-tool-cmd">src/shell-bang.ts</span>
+            <span class="t-diff-add">+4</span> <span class="t-diff-del">−2</span>
+            <span class="t-key">Ctrl+O</span>
+          </div>
+
+          <div class="t-spacer" aria-hidden="true"></div>
+          <div class="t-status">
+            <span class="t-ready">● 就绪</span>
+            <span class="t-dim">上下文 12% · 18.2k/128k</span>
+            <span class="t-dim">32 tok/s</span>
+            <span class="t-dim">effort high</span>
+          </div>
+          <div class="t-input"><span class="t-bar" aria-hidden="true">›</span><span class="t-input-text">修好了？跑一遍测试确认</span><span class="t-cursor" aria-hidden="true"></span></div>
+          <div class="t-mode">► 自动允许模式已开启（shift+tab 切换）</div>
+        </div>
+      </div>
+      <figcaption class="figure-cap">
+        <span class="cap-check"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>界面示意 · 按 v0.36.0 的真实渲染复刻，非截图</span>
+        <span class="cap-meta mono">TERMINAL · 1440 × 900</span>
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- 02 · 以前 / 现在 -->
+  <section class="section" id="why">
+    <div class="wrap">
+      <header class="section-head reveal">
+        <div class="section-kicker"><span class="mono">01</span><span class="rule" aria-hidden="true"></span>它解决什么</div>
+        <h2>代码在终端里，<br>聊天不该在另一个窗口。</h2>
+        <p class="section-lead">编码 agent 的回答已经够长，但你真正要跑的命令、要看的报错、要确认的权限，全在终端里。把两边接起来，比多开一个窗口更省事。</p>
+      </header>
+
+      <div class="compare">
+        <div class="compare-card compare-before reveal">
+          <div class="compare-head"><span class="mono">BEFORE</span><span class="compare-title">以前</span></div>
+          <ul class="plain-list">
+            <li>浏览器里聊代码，终端里跑命令——两边对不上</li>
+            <li>报错复制出来，再粘进对话框</li>
+            <li>审批弹到网页上，回来忘了自己刚才在干嘛</li>
+            <li>一条长命令就把对话冲出屏幕</li>
+            <li>关掉窗口，会话就断在那里</li>
+          </ul>
+        </div>
+        <div class="compare-card compare-after reveal">
+          <div class="compare-head"><span class="mono">AFTER</span><span class="compare-title">现在</span></div>
+          <ul class="check-list">
+            <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>模型就在同一块屏幕、同一个工作目录里</li>
+            <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><code>!</code> 跑完，输出自动跟着下一条消息进上下文</li>
+            <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>审批卡片长在命令下面，按一个键</li>
+            <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>工具卡默认一行，<code>Ctrl+O</code> 才展开全文</li>
+            <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>退出即净屏，<code>fx --resume &lt;id&gt;</code> 原样续上</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 · 一次回合 -->
+  <section class="section" id="how">
+    <div class="wrap">
+      <header class="section-head reveal">
+        <div class="section-kicker"><span class="mono">02</span><span class="rule" aria-hidden="true"></span>一次回合</div>
+        <h2>从敲下 <code>fx</code>，<br>到明天接着聊。</h2>
+        <p class="section-lead">四步都发生在同一个终端里：没有切换，没有复制粘贴，也没有「刚才那步」的回忆成本。</p>
+      </header>
+
+      <div class="steps reveal">
+        <article class="step">
+          <div class="step-top"><span class="step-num mono">01</span><span class="step-icon"><svg class="icon" aria-hidden="true"><use href="#i-terminal"/></svg></span></div>
+          <h3>起</h3>
+          <p><code>fx</code> 启动：横幅钉在顶缘、输入框钉在最后一行，中间空白是弹性的；会话不满一屏也不滚动。</p>
+        </article>
+        <article class="step">
+          <div class="step-top"><span class="step-num mono">02</span><span class="step-icon"><svg class="icon" aria-hidden="true"><use href="#i-chat"/></svg></span></div>
+          <h3>说</h3>
+          <p>多行输入、<code>@</code> 引用工作区文件、<code>/</code> 唤命令与技能、从 Finder 拖图或 <code>Ctrl+V</code> 贴截图。</p>
+        </article>
+        <article class="step">
+          <div class="step-top"><span class="step-num mono">03</span><span class="step-icon"><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg></span></div>
+          <h3>干</h3>
+          <p>工具调用是一行卡，审批按 <code>y</code>/<code>s</code>/<code>a</code>/<code>n</code>；跑到一半想改方向，<code>Enter</code> 注入当前轮、<code>Tab</code> 排队下一轮。</p>
+        </article>
+        <article class="step">
+          <div class="step-top"><span class="step-num mono">04</span><span class="step-icon"><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg></span></div>
+          <h3>收</h3>
+          <p><code>/export</code> 导出 Markdown 时间线；退出时清屏并打印恢复提示，明天 <code>fx --resume</code> 接着聊。</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 · 深潜：shell 直通 -->
+  <section class="section" id="shell">
+    <div class="wrap split">
+      <div class="split-copy">
+        <header class="section-head reveal">
+          <div class="section-kicker"><span class="mono">03</span><span class="rule" aria-hidden="true"></span>shell 直通</div>
+          <h2>先跑，再问。<br>结果它自己看得见。</h2>
+          <p class="section-lead">输入 <code>!npm test</code>，命令在你自己的 shell 里执行，不经过模型、也不触发回复。输出自动暂存进输入框上方的托盘，随你下一条消息进入上下文——所以你只要打「怎么修」，它已经看过报错了。</p>
+        </header>
+        <ul class="points reveal">
+          <li><strong>不惊动模型。</strong><code>!</code> 是本地 shell；退出码、耗时、输出头尾原样成卡，<code>!!</code> 只给你自己看。</li>
+          <li><strong>输出会跟着你走。</strong>暂存块随下一条消息进上下文，头尾各截断到 8KB；空输入框 <code>⌫</code> 撤销最后一条、<code>⌥⌫</code> 清空。</li>
+          <li><strong>有兜底。</strong>超过 10 分钟连同进程树一起杀掉；命令进 ↑ 历史；首词补 PATH 命令名，其余补真实路径。</li>
+        </ul>
+      </div>
+      <div class="split-visual reveal">
+        <figure class="mock mock-term">
+          <div class="mock-head">
+            <div>
+              <div class="mock-eyebrow mono">SHELL PASS-THROUGH</div>
+              <div class="mock-title">跑一条，再问一句</div>
+            </div>
+            <span class="chip chip-term">示意</span>
+          </div>
+          <div class="mock-body term-mini">
+            <div class="t-user"><span class="t-bar" aria-hidden="true">›</span>!npm test</div>
+            <div class="t-tool"><span class="t-tool-err">●</span> <span class="t-tool-name">bash</span> <span class="t-tool-cmd">npm test</span> <span class="t-dim">2.4s · exit 1 · 输出 38 行</span></div>
+            <div class="t-tray"><span class="tray-label">🧾 暂存 · npm test 输出</span><span class="t-dim">38 行 · 头尾截断 8KB</span></div>
+            <div class="t-input"><span class="t-bar" aria-hidden="true">›</span><span class="t-input-text">这个报错怎么修</span></div>
+            <div class="t-foot">托盘里的输出随这条消息一起进入上下文，不需要复制粘贴。</div>
+          </div>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 · 深潜：审批 -->
+  <section class="section" id="approve">
+    <div class="wrap split split-reverse">
+      <div class="split-copy">
+        <header class="section-head reveal">
+          <div class="section-kicker"><span class="mono">04</span><span class="rule" aria-hidden="true"></span>审批</div>
+          <h2>不弹窗，<br>也不等于放行。</h2>
+          <p class="section-lead">审批卡片就长在命令下面：<code>y</code> 允许一次、<code>s</code> 本会话不再问、<code>a</code> 总是允许、<code>n</code> 拒绝。选过的同类动作按语义签名记住——bash 按命令原文、文件工具按路径，<code>a</code> 才写进本地 allowlist。</p>
+        </header>
+        <ul class="points reveal">
+          <li><strong>默认「自动允许」。</strong>工具调用不逐个询问；想恢复逐次确认，<code>/config permission ask</code> 写进启动默认，或 <code>Shift+Tab</code> 只切当前会话。</li>
+          <li><strong>模式看得见。</strong>输入框下方一直显示当前权限模式，不用猜这次会不会问你。</li>
+          <li><strong>记忆是本地文件。</strong><code>$DSH_HOME/fx-tui-allowlist.json</code>，删掉即清空全部「总是」授权。</li>
+        </ul>
+      </div>
+      <div class="split-visual reveal">
+        <figure class="mock mock-term">
+          <div class="mock-head">
+            <div>
+              <div class="mock-eyebrow mono">APPROVAL</div>
+              <div class="mock-title">沙箱升级时的一次确认</div>
+            </div>
+            <span class="chip chip-term">示意</span>
+          </div>
+          <div class="mock-body term-mini">
+            <div class="approval">
+              <div class="approval-title"><span class="t-glyph">◆</span> 需要授权 · bash</div>
+              <div class="approval-cmd">rm -rf node_modules/.cache</div>
+              <div class="approval-why">沙箱升级：要写工作区之外的路径</div>
+              <div class="approval-keys">
+                <span><kbd>y</kbd> 允许一次</span>
+                <span><kbd>s</kbd> 本会话不再问</span>
+                <span><kbd>a</kbd> 总是允许</span>
+                <span><kbd>n</kbd> 拒绝</span>
+              </div>
+            </div>
+            <div class="t-foot">同样的命令下次直接放行；换一条命令，就再问一次。</div>
+          </div>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 · 深潜：转录收纳 -->
+  <section class="section" id="transcript">
+    <div class="wrap split">
+      <div class="split-copy">
+        <header class="section-head reveal">
+          <div class="section-kicker"><span class="mono">05</span><span class="rule" aria-hidden="true"></span>转录收纳</div>
+          <h2>屏幕只有一屏，<br>长输出得学会折叠。</h2>
+          <p class="section-lead">命令卡默认一行：命令截断、耗时、退出码、输出行数都在，完整命令与全文收进 <code>Ctrl+O</code> 面板。思考默认一行摘要，<code>Ctrl+T</code> 实时尾随、定稿内联、空闲时把上一步全文打成面板。</p>
+        </header>
+        <ul class="points reveal">
+          <li><strong>默认单行。</strong>长管道命令不再把转写冲出视口；要看全文再展开，不是一开始就铺满。</li>
+          <li><strong>一个键一层。</strong><code>Ctrl+O</code> 工具详情、<code>Ctrl+T</code> 思考、<code>Ctrl+R</code> 注入的隐藏上下文。</li>
+          <li><strong>状态栏是心跳。</strong>spinner、思考字数、token 与缓存命中、输出速度、上下文水位（≥80% 琥珀、≥95% 红）、推理等级、重试可视化。</li>
+          <li><strong>窄终端先降级，不先乱。</strong>先丢推理等级、再丢用量，上下文水位永远保留。</li>
+        </ul>
+      </div>
+      <div class="split-visual reveal">
+        <figure class="mock mock-term">
+          <div class="mock-head">
+            <div>
+              <div class="mock-eyebrow mono">TRANSCRIPT</div>
+              <div class="mock-title">折叠态与展开态</div>
+            </div>
+            <span class="chip chip-term">示意</span>
+          </div>
+          <div class="mock-body term-mini">
+            <div class="t-tool"><span class="t-tool-ok">●</span> <span class="t-tool-name">bash</span> <span class="t-tool-cmd">pnpm test --filter store</span> <span class="t-dim">2.4s · exit 1 · 输出 38 行</span></div>
+            <div class="t-think"><span class="t-glyph">✻</span> 思考：先看失败用例 · 6.2s · 1,284 字 <span class="t-key">Ctrl+T</span></div>
+            <div class="t-tool"><span class="t-tool-ok">●</span> <span class="t-tool-name">read</span> <span class="t-tool-cmd">src/store.ts</span> <span class="t-dim">214 行</span></div>
+            <div class="t-panel">
+              <div class="t-panel-label mono">Ctrl+O · 完整输出</div>
+              <div class="t-panel-cmd">$ pnpm test --filter store</div>
+              <div class="t-panel-line">FAIL src/store.test.ts &gt; thinking &gt; 结算用时</div>
+              <div class="t-panel-line t-err">expected 1284 to be 1280</div>
+              <div class="t-panel-line t-dim">… 35 more lines</div>
+            </div>
+            <div class="t-status"><span class="t-ready">● 就绪</span><span class="t-dim">上下文 12%</span><span class="t-dim">32 tok/s</span></div>
+          </div>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 · 还有一些 -->
+  <section class="section" id="more">
+    <div class="wrap">
+      <header class="section-head reveal">
+        <div class="section-kicker"><span class="mono">06</span><span class="rule" aria-hidden="true"></span>还有一些</div>
+        <h2>主卖点之外，<br>天天会用的那几件。</h2>
+        <p class="section-lead">不是功能清单，是三个月后你还会按的那几个键。</p>
+      </header>
+
+      <div class="cards reveal">
+        <article class="card">
+          <span class="card-icon"><svg class="icon" aria-hidden="true"><use href="#i-chat"/></svg></span>
+          <h3><code>/btw</code> 侧问</h3>
+          <p>复用当前上下文做一次无工具单轮提问：不写会话历史、不计 token、不打断正在跑的回合，答案以面板呈现。</p>
+        </article>
+        <article class="card">
+          <span class="card-icon"><svg class="icon" aria-hidden="true"><use href="#i-palette"/></svg></span>
+          <h3><code>/theme</code> 主题</h3>
+          <p>内置浅/深，外带 14 款 Ghostty 热门主题；启动时探测终端背景色自动选深浅，界面 chrome 始终是品牌 teal。</p>
+        </article>
+        <article class="card">
+          <span class="card-icon"><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg></span>
+          <h3><code>/update</code> 自我升级</h3>
+          <p>在 TUI 里完成 fetch → 快进合并 → 装依赖 → 重建；脏工作区先拦，只快进、不产生 merge 提交。</p>
+        </article>
+      </div>
+      <p class="more-note reveal">还有 <code>/sessions</code> 活体切换会话、<code>/doctor</code> 逐项环境自检、<code>/context</code> 上下文明细、<code>/image</code> 附加图片，以及 <code>@</code> 文件补全和技能菜单——都在 <code>/help</code> 里。</p>
+    </div>
+  </section>
+
+  <!-- 08 · 界面 -->
+  <section class="section" id="ui">
+    <div class="wrap split">
+      <div class="split-copy">
+        <header class="section-head reveal">
+          <div class="section-kicker"><span class="mono">07</span><span class="rule" aria-hidden="true"></span>界面</div>
+          <h2>它借了终端的壳，<br>没跟终端抢戏。</h2>
+          <p class="section-lead">fx-tui 没有自己的窗口，也不接管你的终端配置：主屏保留 scrollback，历史可搜索、可复制，退出时再把屏幕擦干净。</p>
+        </header>
+        <ul class="points reveal">
+          <li><strong>钉顶钉底。</strong>启动横幅钉在顶缘、输入框钉在最后一行，中间的空白是弹性的——会话不满一屏也零滚动。</li>
+          <li><strong>颜色分两个域。</strong>界面 chrome（横幅、边框、状态）固定品牌 teal-cyan；代码、diff、markdown 跟随所选主题。</li>
+          <li><strong>主题不换 app。</strong>14 款主题只染内容，不染 chrome——换来换去还是同一个工具。</li>
+          <li><strong>该降级就降级。</strong>窄终端先截断事实值、再隐藏 logo；状态栏先丢推理等级，再丢用量。</li>
+        </ul>
+      </div>
+      <div class="split-visual reveal">
+        <figure class="shot-fig">
+          <div class="shot">
+            <img src="assets/shot-light.webp" width="1448" height="1642" alt="fx-tui 在 macOS 终端里的启动画面：FX ASCII 横幅、模型与版本信息、状态栏、输入框和自动允许模式提示">
+          </div>
+          <figcaption class="figure-cap">
+            <span class="cap-check"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>实际界面 · 启动画面（仓库内 v0.9.0 截图）</span>
+            <span class="cap-meta mono">1448 × 1642</span>
+          </figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- 09 · 安装 -->
+  <section class="section" id="install">
+    <div class="wrap">
+      <header class="section-head reveal">
+        <div class="section-kicker"><span class="mono">08</span><span class="rule" aria-hidden="true"></span>安装</div>
+        <h2>三件事，<br>然后就有 <code>fx</code> 了。</h2>
+        <p class="section-lead">只支持 macOS，需要 Node.js 与 dsh CLI。装完第一次启动会看到横幅与「自动允许」模式提示——那是默认值，不是唯一选择。</p>
+      </header>
+
+      <div class="install-grid">
+        <div class="install-steps reveal">
+          <div class="install-step">
+            <div class="install-num mono">1</div>
+            <div class="install-body">
+              <h3>备齐运行时</h3>
+              <p>Node.js ≥ 24.9.0、pnpm，以及 dsh CLI 本体（<code>0.2.2-rc.1</code> 或更高）——没有它 <code>fx</code> 无法启动。DeepSeek API key 写进 <code>~/.dsh/.credentials.yaml</code>。</p>
+              <div class="code">
+                <code>node -v &amp;&amp; pnpm -v &amp;&amp; dsh --version</code>
+                <button class="copy-btn" type="button" data-copy="node -v && pnpm -v && dsh --version" aria-label="复制命令"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>复制</span></button>
+              </div>
+            </div>
+          </div>
+          <div class="install-step">
+            <div class="install-num mono">2</div>
+            <div class="install-body">
+              <h3>克隆、构建、注册</h3>
+              <p><code>dsh plugin</code> 是官方树外插件机制；最后一步把 <code>fx</code> 放进 PATH。</p>
+              <div class="code code-stack">
+                <code><span class="code-line">git clone https://github.com/xianglifei/dsh-tui-fx.git ~/fx-tui</span><span class="code-line">cd ~/fx-tui &amp;&amp; pnpm install &amp;&amp; pnpm run build</span><span class="code-line">dsh plugin --profile fx add "$(pwd)"</span><span class="code-line">cp bin/fx /opt/homebrew/bin/fx</span><span class="code-line">fx</span></code>
+                <button class="copy-btn" type="button" data-copy="git clone https://github.com/xianglifei/dsh-tui-fx.git ~/fx-tui
+cd ~/fx-tui && pnpm install && pnpm run build
+dsh plugin --profile fx add &quot;$(pwd)&quot;
+cp bin/fx /opt/homebrew/bin/fx
+fx" aria-label="复制命令"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>复制</span></button>
+              </div>
+            </div>
+          </div>
+          <div class="install-step">
+            <div class="install-num mono">3</div>
+            <div class="install-body">
+              <h3>或者交给终端 agent</h3>
+              <p>把这句话复制给 Claude Code、ZCode 等编码 agent，它会读安装指南、装好并验证。</p>
+              <div class="code code-stack">
+                <code><span class="code-line">请读取 https://raw.githubusercontent.com/xianglifei/dsh-tui-fx/main/docs/install.md</span><span class="code-line">，严格按其中的步骤帮我把 fx-tui 完整装好并验证可用；</span><span class="code-line">任何一步失败就停下，把错误原文完整告诉我，不要自行猜测或跳过。</span></code>
+                <button class="copy-btn" type="button" data-copy="请读取 https://raw.githubusercontent.com/xianglifei/dsh-tui-fx/main/docs/install.md ，严格按其中的步骤帮我把 fx-tui 完整装好并验证可用；任何一步失败就停下，把错误原文完整告诉我，不要自行猜测或跳过。" aria-label="复制安装提示"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>复制</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="config-card reveal">
+          <div class="config-head"><span class="mono">$DSH_HOME/fx-tui-settings.json</span><span class="chip">默认值</span></div>
+          <pre class="config-code"><code>{
+  <span class="k">"version"</span>: <span class="v">1</span>,
+  <span class="k">"approvalMode"</span>: <span class="v">"auto"</span>,
+  <span class="k">"autoUpdate"</span>: <span class="v">true</span>,
+  <span class="k">"theme"</span>: <span class="v">"auto"</span>,
+  <span class="k">"notify"</span>: <span class="v">"bell"</span>,
+  <span class="k">"autoCompact"</span>: <span class="v">false</span>,
+  <span class="k">"statusLine"</span>: [
+    <span class="v">"context"</span>,
+    <span class="v">"usage"</span>,
+    <span class="v">"effort"</span>
+  ]
+}</code></pre>
+          <div class="config-foot">自动允许、自动更新开、通知响铃、主题自动探测、自动压缩默认关。权限模式随时 <code>Shift+Tab</code> 临时切换；<code>/config</code> 改的是启动默认。</div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 · 边界 -->
+  <section class="section" id="limits">
+    <div class="wrap">
+      <header class="section-head reveal">
+        <div class="section-kicker"><span class="mono">09</span><span class="rule" aria-hidden="true"></span>边界</div>
+        <h2>它不假装<br>什么都能做。</h2>
+        <p class="section-lead">以下每一条都能在 README、安装指南或代码里找到出处。装之前先看清楚，比装完再踩坑省时间。</p>
+      </header>
+
+      <div class="limits reveal">
+        <article class="limit"><span class="limit-tag mono">LIMIT 01</span><h3>只有 macOS</h3><p>开发和验证都在 macOS 上完成。Windows 适配调研过但暂缓，暂时请用 dsh 自带的 Web UI。</p></article>
+        <article class="limit"><span class="limit-tag mono">LIMIT 02</span><h3>不是独立应用</h3><p>必须先有 dsh CLI 运行时和 DeepSeek API key。peer 依赖精确锁在 dsh 的 <code>0.2.2-rc.1</code>；版本对不上时 dsh 会打印一行 warning 并跳过整个 bundle——<code>fx</code> 进去没有界面，升级 dsh 时请同步升级 fx-tui。</p></article>
+        <article class="limit"><span class="limit-tag mono">LIMIT 03</span><h3>默认自动允许</h3><p>装完工具调用不逐个询问。请自己判断：<code>Shift+Tab</code> 切到逐次确认，或 <code>/config permission ask</code> 写进默认。</p></article>
+        <article class="limit"><span class="limit-tag mono">LIMIT 04</span><h3>没有图形面板</h3><p>它是终端界面：图片可以输入给模型，但不在终端里渲染预览；文档、表格也没有可视化视图。</p></article>
+        <article class="limit"><span class="limit-tag mono">LIMIT 05</span><h3>自动更新要重启</h3><p>后台更新只在启动约两分钟后检查、每 24 小时最多联网一次；新版本落盘后，当前进程仍是旧代码。</p></article>
+        <article class="limit"><span class="limit-tag mono">LIMIT 06</span><h3>审批记忆不是安全边界</h3><p>「总是允许」是本地 JSON，按命令原文/路径匹配，不区分项目、不加密；删文件即清空，别把它当权限系统。</p></article>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta" id="start">
+    <div class="wrap cta-inner reveal">
+      <div class="eyebrow"><span class="eyebrow-dot" aria-hidden="true"></span><span class="mono">GET STARTED</span></div>
+      <h2>下一轮，<br>就在终端里开。</h2>
+      <p>装好之后，敲一个 <code>fx</code>。剩下的活，它就在你旁边干。</p>
+      <div class="cta-actions">
+        <a class="btn btn-primary" href="#install">安装 fx-tui<svg class="icon" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
+        <a class="btn btn-ghost" href="https://github.com/xianglifei/dsh-tui-fx" target="_blank" rel="noreferrer"><svg class="icon" aria-hidden="true"><use href="#i-github"/></svg>查看源码</a>
+      </div>
+      <div class="cta-note"><span class="cap-check"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>本地运行</span><span class="mono">NODE ≥ 24.9.0</span><span class="mono">macOS</span><span class="mono">MIT</span></div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <div class="footer-brand">
+      <span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="#i-prompt"/></svg></span>
+      <div>
+        <div class="footer-title">fx-tui</div>
+        <div class="footer-sub">DeepSeek Harness 的交互式终端界面。</div>
+      </div>
+    </div>
+    <nav class="footer-links" aria-label="页脚导航">
+      <a href="https://github.com/xianglifei/dsh-tui-fx#readme" target="_blank" rel="noreferrer">README</a>
+      <a href="https://github.com/xianglifei/dsh-tui-fx/blob/main/docs/install.md" target="_blank" rel="noreferrer">安装指南</a>
+      <a href="https://github.com/xianglifei/dsh-tui-fx/blob/main/CHANGELOG.md" target="_blank" rel="noreferrer">更新日志</a>
+      <a href="https://github.com/xianglifei/dsh-tui-fx" target="_blank" rel="noreferrer">GitHub</a>
+    </nav>
+    <div class="footer-meta mono">© 2026 xianglifei · DSH TUI · v0.36.0</div>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

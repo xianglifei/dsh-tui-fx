@@ -50,3 +50,22 @@ describe('FxSettings status line', () => {
     expect(settings.statusLineCustomized).toBe(false)
   })
 })
+
+describe('FxSettings goal rounds', () => {
+  it('defaults to timeline and persists quiet', () => {
+    const home = tempDshHome()
+    const settings = new FxSettings(home)
+    expect(settings.goalRounds).toBe('timeline')
+
+    settings.setGoalRounds('quiet')
+    const raw = JSON.parse(readFileSync(`${home}/fx-tui-settings.json`, 'utf8')) as { goalRounds?: string }
+    expect(raw.goalRounds).toBe('quiet')
+    expect(new FxSettings(home).goalRounds).toBe('quiet')
+  })
+
+  it('falls back to the default on an unknown value', () => {
+    const home = tempDshHome()
+    writeFileSync(`${home}/fx-tui-settings.json`, JSON.stringify({ version: 1, approvalMode: 'auto', goalRounds: 'loud' }))
+    expect(new FxSettings(home).goalRounds).toBe('timeline')
+  })
+})

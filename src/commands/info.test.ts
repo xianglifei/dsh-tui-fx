@@ -88,6 +88,27 @@ describe('/status', () => {
     expect(body).toContain('已加载插件（2）')
   })
 
+  it('summarises plan mode, the goal, jobs and running subagents', async () => {
+    const { c, log, store } = makeCtx()
+    store.onEvent({ type: 'plan/mode', data: { active: true }, time: 1 } as never)
+    store.onEvent({
+      type: 'goal/change',
+      data: {
+        operation: 'create',
+        roundsStarted: 3,
+        goal: { id: 'g1', revision: 1, objective: '把 CI 修绿', phase: 'active', maxGoalRounds: 256 },
+      },
+      time: 2,
+    } as never)
+    store.setJobCount(2)
+    store.setChildAgentCount(1)
+
+    await runStatus(c)
+
+    const body = log.panels[0]?.lines.join('\n') ?? ''
+    expect(body).toContain('模式：计划中 · 目标 3/256 · 任务 ⚙2 · 子代理 🌱1')
+  })
+
   it('survives a registry that refuses to be walked', async () => {
     const ctx = {
       registry: { forEach: () => { throw new Error('locked') } },

@@ -267,6 +267,7 @@ async function main(ctx: Context, exit: (code: number) => void | Promise<void>):
     getCustomCommand: () => settings.statusLineCommand,
   })
   store.setStatusLineItems(settings.statusLine)
+  store.setGoalRoundsMode(settings.goalRounds)
   statusLineWatcher.start()
   // Persistent input history (↑/↓ browse): the live array is handed to the
   // editor by reference, pushes need no React notification path.

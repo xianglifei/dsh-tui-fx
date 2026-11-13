@@ -27,6 +27,8 @@ import { ApprovalBridge } from './approval-bridge.js'
 import type { ApprovalChoice, ApprovalPrompt, BridgeHooks } from './approval-bridge.js'
 import { QuestionBridge } from './question-bridge.js'
 import type { ActiveQuestion } from './question-bridge.js'
+import { goalSeparator } from './modes.js'
+import type { GoalChipState, GoalPhase, GoalRoundsMode } from './modes.js'
 import { DEFAULT_STATUS_LINE } from './statusline.js'
 import type { StatusLineItemId } from './statusline.js'
 import { formatCount, formatElapsed, truncateLine } from './text.js'
@@ -158,6 +160,10 @@ export interface Snapshot {
   readonly childAgents: number
   /** Live background jobs owned by this session (running + stopping). */
   readonly jobs: number
+  /** Plan mode on for this session (`plan/mode`). */
+  readonly planActive: boolean
+  /** Current goal, folded from `goal/change`; null when none is current. */
+  readonly goal: GoalChipState | null
   readonly verboseTranscript: boolean
   readonly streaming: string
   readonly phase: Phase
@@ -233,6 +239,9 @@ export class TuiStore {
   private todos: TodoItem[] = []
   private childAgentCount = 0
   private jobCount = 0
+  private planActive = false
+  private goal: GoalChipState | null = null
+  private goalRounds: GoalRoundsMode = 'timeline'
   private verboseTranscript = false
   private streamBuf = ''
   private streamText = ''
@@ -315,6 +324,8 @@ export class TuiStore {
       todos: [...this.todos],
       childAgents: this.childAgentCount,
       jobs: this.jobCount,
+      planActive: this.planActive,
+      goal: this.goal === null ? null : { ...this.goal },
       verboseTranscript: this.verboseTranscript,
       streaming: this.streamText,
       phase: this.phase,
@@ -384,6 +395,12 @@ export class TuiStore {
 
   /** Fold one live session event into the view state. */
   onEvent(ev: SessionEvent): void {
+    // Events from packages this bundle does not type-depend on are folded
+    // first: they have no arm in the typed switch below.
+    if (this.foldExtensionEvent(ev)) {
+      if (!this.replaying) this.commit()
+      return
+    }
     switch (ev.type) {
       case 'agent/inbox/spliced': {
         // The durable inbox is the single source of truth for pending work:
@@ -453,6 +470,19 @@ export class TuiStore {
       }
       case 'user/message': {
         const message = ev.data
+        // An automatic goal round is a user-role message with no human behind
+        // it; a separator keeps it from reading as the model talking to itself.
+        const source = message.source as { kind: string; round?: number }
+        if (source.kind === 'goal') {
+          if (!this.replaying && this.goalRounds === 'timeline') {
+            this.items.push({
+              kind: 'notice',
+              tone: 'info',
+              text: goalSeparator(source.round ?? 1, this.goal?.maxGoalRounds ?? null),
+            })
+          }
+          break
+        }
         if (message.source.kind !== 'user') {
           if (this.verboseTranscript && !this.replaying) {
             this.items.push({
@@ -850,6 +880,8 @@ export class TuiStore {
     this.todos = []
     this.childAgentCount = 0
     this.jobCount = 0
+    this.planActive = false
+    this.goal = null
     this.turnToolCalls = 0
     this.retryWait = null
     this.streamBuf = ''
@@ -1213,6 +1245,49 @@ export class TuiStore {
     }
   }
 
+  /** Goal-round visibility comes from settings (`/config goalrounds`). */
+  setGoalRoundsMode(mode: GoalRoundsMode): void {
+    if (this.goalRounds === mode) return
+    this.goalRounds = mode
+    this.commit()
+  }
+
+  /** Fold goal / plan-mode events, whose packages are not type dependencies.
+   * Payloads are read by wire name; a shape change degrades to "no state"
+   * instead of throwing inside the reducer. */
+  private foldExtensionEvent(ev: SessionEvent): boolean {
+    const raw = ev as unknown as { type: string; data?: unknown }
+    const data = (raw.data ?? {}) as Record<string, unknown>
+    if (raw.type === 'goal/change') {
+      this.foldGoalChange(data)
+      return true
+    }
+    if (raw.type === 'plan/mode') {
+      this.planActive = data.active === true
+      return true
+    }
+    return false
+  }
+
+  private foldGoalChange(data: Record<string, unknown>): void {
+    if (data.operation === 'clear') {
+      this.goal = null
+      return
+    }
+    const goal = data.goal as Record<string, unknown> | undefined
+    if (goal === undefined) return
+    const phaseRaw = goal.phase
+    const phase: GoalPhase = phaseRaw === 'paused' || phaseRaw === 'blocked' || phaseRaw === 'complete' ? phaseRaw : 'active'
+    const blocked = goal.blockedReason as { message?: unknown } | undefined
+    this.goal = {
+      phase,
+      roundsStarted: typeof data.roundsStarted === 'number' ? data.roundsStarted : 0,
+      maxGoalRounds: typeof goal.maxGoalRounds === 'number' ? goal.maxGoalRounds : 0,
+      objective: typeof goal.objective === 'string' ? goal.objective : '',
+      ...(typeof blocked?.message === 'string' ? { blockedMessage: blocked.message } : {}),
+    }
+  }
+
   /** Mark the next selection event as this UI's own write (see `selectModel`). */
   expectOwnSelection(next: ModelSelection): void {
     this.ownSelection = next
@@ -1268,6 +1343,10 @@ export class TuiStore {
 
   submitFreeTextAnswer(text: string): void {
     this.questions.submitFreeText(text)
+  }
+
+  pageQuestionPlan(delta: 1 | -1): void {
+    this.questions.pagePlan(delta)
   }
 
   skipQuestion(): void {

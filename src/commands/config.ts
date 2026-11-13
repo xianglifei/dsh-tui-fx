@@ -19,6 +19,11 @@ const DIRECT_MODE_WORDS: Record<string, ApprovalMode> = {
   '每次询问': 'ask', 询问: 'ask',
 }
 
+const GOAL_ROUNDS_WORDS: Record<string, 'timeline' | 'quiet'> = {
+  timeline: 'timeline', quiet: 'quiet',
+  显示: 'timeline', 显示分隔线: 'timeline', 静默: 'quiet', 隐藏: 'quiet',
+}
+
 const AUTO_WORDS: Record<string, boolean> = {
   on: true, off: false,
   开启: true, 开: true, 打开: true,
@@ -59,6 +64,20 @@ export async function runConfig(c: CommandCtx, arg: string): Promise<void> {
       applyNotify(c, notifyTarget)
       return
     }
+    const goalRoundsRaw = key === 'goalrounds' && value !== undefined ? value.toLowerCase() : undefined
+    if (goalRoundsRaw !== undefined) {
+      const target = GOAL_ROUNDS_WORDS[goalRoundsRaw]
+      if (target === undefined) {
+        c.store.addNotice('用法：/config goalrounds <timeline|quiet>（目标自动续轮是否显示分隔线）', 'warn')
+        return
+      }
+      c.settings.setGoalRounds(target)
+      c.store.setGoalRoundsMode(target)
+      c.store.addNotice(target === 'timeline'
+        ? '目标续行分隔线：显示（已完成历史不再重绘）'
+        : '目标续行分隔线：隐藏（/config goalrounds timeline 恢复）')
+      return
+    }
     const compactRaw = key === 'autocompact' && value !== undefined ? value.toLowerCase() : undefined
     if (compactRaw !== undefined) {
       const compactTarget = AUTO_WORDS[compactRaw]
@@ -69,7 +88,7 @@ export async function runConfig(c: CommandCtx, arg: string): Promise<void> {
       applyAutoCompact(c, compactTarget)
       return
     }
-    c.store.addNotice('用法：/config（交互选择）· /config permission <auto|ask> · /config autoupdate <on|off> · /config notify <off|bell|system> · /config autocompact <on|off>', 'warn')
+    c.store.addNotice('用法：/config（交互选择）· /config permission <auto|ask> · /config autoupdate <on|off> · /config notify <off|bell|system> · /config autocompact <on|off> · /config goalrounds <timeline|quiet>', 'warn')
     return
   }
   const modeChosen = await pick(c, `设置启动默认权限模式（当前 ${modeLabel(c.settings.approvalMode)}）`, [

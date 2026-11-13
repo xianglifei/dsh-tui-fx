@@ -61,3 +61,43 @@ describe('QuestionBridge', () => {
     expect(bridge.current).toBeNull()
   })
 })
+
+describe('QuestionBridge plan-review paging', () => {
+  const PLAN = {
+    id: 'plan-review',
+    question: 'Approve this plan and leave plan mode?',
+    detail: '# 计划\n\n1. 改 A\n2. 改 B',
+    options: [option('Approve'), option('Keep planning')],
+    // callId is a branded ToolCallId at the type level; the bridge only echoes it.
+    intent: { kind: 'plan-review' as const, approve: 'Approve', callId: 'c1' as never },
+  }
+
+  it('starts on page 0, moves one page at a time, and never goes negative', () => {
+    const bridge = new QuestionBridge(hooks)
+    void bridge.ask([PLAN])
+    expect(bridge.current?.planPage).toBe(0)
+    bridge.pagePlan(1)
+    expect(bridge.current?.planPage).toBe(1)
+    bridge.pagePlan(-1)
+    bridge.pagePlan(-1)
+    expect(bridge.current?.planPage).toBe(0)
+  })
+
+  it('ignores paging on a non-plan question', () => {
+    const bridge = new QuestionBridge(hooks)
+    void bridge.ask([{ id: 'a', question: 'Q', options: [option('x')] }])
+    bridge.pagePlan(1)
+    expect(bridge.current?.planPage).toBe(0)
+  })
+
+  it('resets the page for the next question', async () => {
+    const bridge = new QuestionBridge(hooks)
+    const pending = bridge.ask([PLAN, { ...PLAN, id: 'plan-review-2' }])
+    bridge.pagePlan(1)
+    bridge.confirm('Approve')
+    expect(bridge.current?.item.id).toBe('plan-review-2')
+    expect(bridge.current?.planPage).toBe(0)
+    bridge.skip()
+    await pending
+  })
+})

@@ -11,6 +11,7 @@ import {
   estimateItemHeight,
   estimateQuestionHeight,
   formatElapsed,
+  PLAN_PAGE_ROWS,
   headTailPreview,
   questionHintText,
   questionOptionRow,
@@ -87,6 +88,27 @@ describe('estimateQuestionHeight', () => {
 
   it('a full window adds the ▼ overflow indicator row', () => {
     expect(estimateQuestionHeight(makeQuestion(QUESTION_WINDOW + 3), 78, 80)).toBe(14)
+  })
+
+  it('a long plan body is budgeted as one page plus the pager row', () => {
+    const plan = (lines: number): ActiveQuestion => ({
+      item: {
+        id: 'plan-review',
+        question: 'Approve?',
+        detail: Array.from({ length: lines }, (_, i) => `- 第 ${i} 条`).join('\n'),
+        options: [{ label: 'Approve' }, { label: 'Keep planning' }],
+        intent: { kind: 'plan-review', approve: 'Approve', callId: 'c1' },
+      },
+      selected: [],
+      index: 1,
+      total: 1,
+      cursor: 0,
+      scroll: 0,
+      planPage: 0,
+    } as unknown as ActiveQuestion)
+    const short = estimateQuestionHeight(plan(PLAN_PAGE_ROWS), 78, 80)
+    const long = estimateQuestionHeight(plan(PLAN_PAGE_ROWS + 20), 78, 80)
+    expect(long - short).toBe(1)
   })
 })
 

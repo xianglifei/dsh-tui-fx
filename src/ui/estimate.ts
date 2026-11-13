@@ -194,6 +194,11 @@ function estimateToolCardHeight(item: ToolItem, width: number, columns: number):
 /** Estimated rows of the question/approval card (== actual). Mirrors the
  * view's visible-window slicing: only the QUESTION_WINDOW options in the
  * current scroll window render, plus ▲/▼ overflow indicator rows. */
+/** Plan-review body rows shown per page. Fixed rather than terminal-derived so
+ * the view and this estimator cannot disagree: a 12-row body plus the option
+ * rows and the input still fits a 24-row terminal. */
+export const PLAN_PAGE_ROWS = 12
+
 export function estimateQuestionHeight(question: ActiveQuestion, width: number, columns: number): number {
   const item = question.item
   const inner = Math.max(8, columns - 4)
@@ -208,7 +213,9 @@ export function estimateQuestionHeight(question: ActiveQuestion, width: number, 
   if (item.detail !== undefined && item.detail !== '') {
     if (isPlanReview) {
       const planLines = renderMarkdownLines(item.detail, Math.max(24, width - 4))
-      h += Math.min(planLines.length, 30) + (planLines.length > 30 ? 1 : 0)
+      // The view pages the body; the pager footer replaces the old truncation
+      // line, so both paths cost exactly one extra row.
+      h += Math.min(planLines.length, PLAN_PAGE_ROWS) + (planLines.length > PLAN_PAGE_ROWS ? 1 : 0)
     } else {
       h += 1 // the view truncates the detail to a single line
     }
@@ -230,9 +237,9 @@ export function estimateQuestionHeight(question: ActiveQuestion, width: number, 
 
 /** The question card's footer hint; the view and this estimator must render
  * the same string so the wrapped row count matches the budget. */
-export function questionHintText(isPlanReview: boolean, multiSelect: boolean): string {
+export function questionHintText(isPlanReview: boolean, multiSelect: boolean, paged = false): string {
   return isPlanReview
-    ? '↑↓ 选择 · Enter 批准 · Esc 跳过'
+    ? `↑↓ 选择 · ${paged ? 'PgUp/PgDn 翻页 · ' : ''}Enter 批准 · Esc 跳过`
     : multiSelect
       ? '↑↓ 移动 · 数字键多选 · Enter 确认 · Esc 跳过'
       : '↑↓ 选择 · 数字键直选 · Enter 确认 · Esc 跳过'

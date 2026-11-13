@@ -54,6 +54,20 @@ const TOOL_RESULT = (callId: string, text: string): unknown => ({
   },
 })
 
+const SYSTEM = (text: string, seq: number): unknown => ({
+  type: 'system/message',
+  seq,
+  time: 1000 + seq,
+  data: { message: { role: 'system', content: [{ type: 'text', text }] } },
+})
+
+const DEVELOPER = (blocks: readonly unknown[], seq: number): unknown => ({
+  type: 'developer/message',
+  seq,
+  time: 1000 + seq,
+  data: { message: { role: 'developer', content: blocks } },
+})
+
 describe('/export', () => {
   it('writes a markdown timeline next to the working directory', async () => {
     const { c, log } = makeCtx({ agent: () => agentWithEvents([USER('你好'), ASSISTANT('收到')]) })
@@ -86,6 +100,35 @@ describe('/export', () => {
     expect(body).toContain('bash（ls -la）')
     expect(body).toContain('bash（/tmp/a.txt）')
     expect(body).toContain('bash')
+  })
+
+  it('appends the system prompt and the tool-catalog changes', async () => {
+    const events = [
+      SYSTEM('你是 fx-tui。', 0),
+      DEVELOPER([{ type: 'tool-addition', toolName: 'apply_patch' }], 1),
+      USER('你好'),
+      DEVELOPER([{ type: 'tool-removal', toolName: 'run_tests' }], 2),
+      ASSISTANT('收到'),
+    ]
+    const { c, log } = makeCtx({ agent: () => agentWithEvents(events) })
+    await exportSession(c)
+
+    const body = readFileSync(log.panels[0]?.lines[0] ?? '', 'utf8')
+    expect(body).toContain('## 附录 · 系统提示词快照')
+    expect(body).toContain('你是 fx-tui。')
+    expect(body).toContain('## 附录 · 工具目录变更')
+    expect(body).toContain('+apply_patch')
+    expect(body).toContain('−run_tests')
+    // The transcript still leads: appendices come after the timeline.
+    expect(body.indexOf('## 👤 用户')).toBeLessThan(body.indexOf('## 附录 · 系统提示词快照'))
+  })
+
+  it('omits both appendices when the session logged neither', async () => {
+    const { c, log } = makeCtx({ agent: () => agentWithEvents([USER('你好'), ASSISTANT('收到')]) })
+    await exportSession(c)
+
+    const body = readFileSync(log.panels[0]?.lines[0] ?? '', 'utf8')
+    expect(body).not.toContain('附录')
   })
 
   it('reports a write failure instead of throwing', async () => {

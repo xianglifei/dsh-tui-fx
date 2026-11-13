@@ -22,3 +22,18 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm run build
+
+  # Real Agent + scripted model: no network, ~0.2s of work after install.
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:integration

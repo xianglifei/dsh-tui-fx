@@ -24,7 +24,7 @@ import { render } from 'ink'
 import type { Instance } from 'ink'
 import type { Context } from '@deepseek-ai/cordis'
 import { installModelSelection } from '@deepseek-ai/dsh-agent'
-import type { Agent, AgentHandle, ModelSelectionRef } from '@deepseek-ai/dsh-agent'
+import type { Agent, AgentHandle, ModelSelection } from '@deepseek-ai/dsh-agent'
 import { createUserMessage, MessageId } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
@@ -193,16 +193,18 @@ async function main(ctx: Context, exit: (code: number) => void | Promise<void>):
   const defaultModelService = defaultModel
 
   const selection = defaultModelService.currentSelection()
-  // The live selection ref: mutating `current` switches the model from the next step.
-  let selectionRef: ModelSelectionRef = { current: selection, assembled: undefined }
-  const agentOptions = { provider: selection.provider, model: selection.model }
+  // Command-layer view of the next step's route. dsh 0.2 makes the selection a
+  // durable session fact (`agent.model.select()`), so this ref is only the
+  // display/picker cache and every write mirrors into the live agent.
+  const selectionRef: { current?: ModelSelection } = { current: selection }
+  const agentOptions: { provider: string; model: string; reasoningEffort?: NonNullable<ModelSelection['reasoningEffort']> } = {
+    provider: selection.provider,
+    model: selection.model,
+  }
+  if (selection.reasoningEffort !== undefined) agentOptions.reasoningEffort = selection.reasoningEffort
   const setup = (agentCtx: Context): void => {
-    // Mutate the ref in place. The command layer captured this object at
-    // startup, so replacing it would leave /model and /effort writing to a
-    // selection nobody reads — every session switch runs setup again.
-    selectionRef.current = selectionRef.current ?? selection
-    selectionRef.assembled = undefined
-    installModelSelection(agentCtx, selectionRef)
+    // Engine-side switch notices: one scoped pre-step listener per agent.
+    installModelSelection(agentCtx)
   }
 
   let handle = options.resume !== undefined
@@ -215,8 +217,30 @@ async function main(ctx: Context, exit: (code: number) => void | Promise<void>):
       })
   let agent: Agent = handle.agent
 
-  const modelLabel = (): string =>
-    `${agent.options.provider ?? selectionRef.current?.provider ?? ''}/${agent.options.model ?? selectionRef.current?.model ?? ''}`
+  /** Adopt the session's durable selection into the display ref (resume paths). */
+  const syncSelection = (): void => {
+    const recorded = agent.model.current()
+    if (recorded !== undefined) selectionRef.current = recorded
+  }
+  syncSelection()
+
+  /** Options for a newly created/resumed agent: the live route, not the startup
+   * fallback, so `/model` survives `/clear` and session switches. dsh 0.2 keeps
+   * `agent.options` immutable, so the recorded selection supplies the truth. */
+  const liveAgentOptions = (): typeof agentOptions => {
+    const route = selectionRef.current
+    if (route === undefined) return agentOptions
+    return {
+      provider: route.provider,
+      model: route.model,
+      ...(route.reasoningEffort === undefined ? {} : { reasoningEffort: route.reasoningEffort }),
+    }
+  }
+
+  const modelLabel = (): string => {
+    const route = selectionRef.current ?? agent.model.current() ?? agent.options
+    return `${route.provider ?? ''}/${route.model ?? ''}`
+  }
   const presenter = createPresenter(ctx)
   // Startup default approval stance comes from the persisted settings file
   // (default 'auto'); Shift+Tab then changes the session without touching it.
@@ -278,6 +302,10 @@ async function main(ctx: Context, exit: (code: number) => void | Promise<void>):
     // the user is present for.
     if (event.type === 'turn/start') {
       turnStartedAt = event.time
+    } else if (event.type === 'model/selection') {
+      // The durable selection may also be written by other components; the
+      // display ref follows the session's recorded truth, not just our writes.
+      selectionRef.current = event.data
     } else if (event.type === 'turn/end') {
       const elapsed = turnStartedAt !== null ? Math.max(0, event.time - turnStartedAt) : 0
       turnStartedAt = null
@@ -408,6 +436,12 @@ async function main(ctx: Context, exit: (code: number) => void | Promise<void>):
     selectionRef,
     selection,
     modelLabel,
+    selectModel: next => {
+      // Record the durable fact first: if the session append fails, the
+      // display ref must keep describing the route that is actually live.
+      agent.model.select(next)
+      selectionRef.current = next
+    },
     historyEntries: history,
     fxVersion: FX_TUI_VERSION,
     detectedTheme: () => detectedTheme,
@@ -422,7 +456,7 @@ async function main(ctx: Context, exit: (code: number) => void | Promise<void>):
     remountForThemeChange: () => remountForThemeChange(),
     updating: () => updating,
     setUpdating: value => { updating = value },
-    saveDefaultSelection: sel => defaultModelService.saveSelection(sel).catch(() => { /* persisting the default is best-effort */ }),
+    saveDefaultSelection: sel => defaultModelService.saveSelection(sel),
     syncStatusLine: () => {
       store.setStatusLineItems(settings.statusLine)
       statusLineWatcher.applyConfig()
@@ -465,6 +499,9 @@ async function main(ctx: Context, exit: (code: number) => void | Promise<void>):
   function adoptSession(next: AgentHandle): void {
     handle = next
     agent = next.agent
+    // Resume replays the session's recorded selection; the ref follows it so
+    // the banner and the pickers describe the route the next step will use.
+    syncSelection()
     // The new session may live in another workspace: project skills differ.
     void catalog.refresh()
     childAgents.clear()
@@ -485,7 +522,7 @@ async function main(ctx: Context, exit: (code: number) => void | Promise<void>):
     try {
       // resume refuses an id that is still live, so the outgoing agent goes first.
       await handle.dispose()
-      adoptSession(await registry.resume({ resumeSessionId: SessionId(sessionId), agentOptions: agent.options, setup }))
+      adoptSession(await registry.resume({ resumeSessionId: SessionId(sessionId), agentOptions: liveAgentOptions(), setup }))
       store.addNotice(`已切换到会话 ${agent.id}`)
     } catch (error) {
       store.addNotice(`切换会话失败：${error instanceof Error ? error.message : String(error)}`, 'error')
@@ -513,7 +550,7 @@ async function main(ctx: Context, exit: (code: number) => void | Promise<void>):
           ...(forked ? { seedLength: events.length } : {}),
         },
         ...(forked ? { seed: events } : {}),
-        agentOptions: agent.options,
+        agentOptions: liveAgentOptions(),
         setup,
       }))
       // The new agent already owns the terminal by now; a teardown failure must

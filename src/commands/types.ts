@@ -9,15 +9,15 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import type { Agent, ModelSelectionRef } from '@deepseek-ai/dsh-agent'
+import type { Agent, ModelSelection } from '@deepseek-ai/dsh-agent'
 import type { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type { FxSettings } from '../settings.js'
 import type { TuiStore } from '../store.js'
 import type { ThemeName } from '../ui/theme.js'
 
-/** The model/route selection carried by {@link ModelSelectionRef.current}. */
-export type ModelSelection = NonNullable<ModelSelectionRef['current']>
+/** The model/route selection the next step will use. */
+export type { ModelSelection }
 
 /** A fork's lineage, carried from a command to {@link CommandCtx.startSession}.
  *
@@ -45,8 +45,13 @@ export interface CommandCtx {
   agent(): Agent
   /** Persisted startup defaults ($DSH_HOME/fx-tui-settings.json). */
   readonly settings: FxSettings
-  /** Live model selection; mutating `.current` switches from the next step. */
-  readonly selectionRef: ModelSelectionRef
+  /** Display copy of the next step's selection; write through {@link selectModel}. */
+  readonly selectionRef: { current?: ModelSelection }
+  /**
+   * Switch the live agent's route for future steps. dsh 0.2 records the choice
+   * as a durable `model/selection` event, so this is the only write path.
+   */
+  selectModel(next: ModelSelection): void
   /** Startup selection (fallback while the ref holds nothing). */
   readonly selection: ModelSelection
   /** provider/model label of the live agent (picker titles, /status, /export). */

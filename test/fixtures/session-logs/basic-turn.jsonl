@@ -1,0 +1,10 @@
+{"seq":0,"time":1000,"type":"turn/start","data":{"turn":1}}
+{"seq":1,"time":1010,"type":"user/message","data":{"turn":1,"source":{"kind":"user"},"content":[{"type":"text","text":"跑一下测试"}]}}
+{"seq":2,"time":1020,"type":"request/header","data":{"turn":1,"step":1,"header":{"config":{"model":"deepseek-flash","reasoningEffort":"low"}}}}
+{"seq":3,"time":1030,"type":"request/context","data":{"turn":1,"step":1,"contextWindow":1048576}}
+{"seq":4,"time":1500,"type":"tool/call","data":{"turn":1,"step":1,"callId":"c1","name":"bash","arguments":"{\"command\":\"pnpm test\"}"}}
+{"seq":5,"time":2600,"type":"tool/result","data":{"turn":1,"step":1,"message":{"role":"tool","toolCallId":"c1","content":[{"type":"text","text":"383 passed (34 files)"}]}}}
+{"seq":6,"time":3000,"type":"tool/call","data":{"turn":1,"step":1,"callId":"c2","name":"bash","arguments":"{\"command\":\"ls /nope\"}"}}
+{"seq":7,"time":3100,"type":"tool/result","data":{"turn":1,"step":1,"message":{"role":"tool","toolCallId":"c2","isError":true,"content":[{"type":"text","text":"ls: /nope: No such file or directory"}]}}}
+{"seq":8,"time":3200,"type":"assistant/message","data":{"turn":1,"step":1,"message":{"role":"assistant","content":[{"type":"text","text":"测试全绿；`ls /nope` 按预期失败。"}]},"stream":[],"usage":{"inputTokens":1200,"outputTokens":30}}}
+{"seq":9,"time":3210,"type":"turn/end","data":{"turn":1,"reason":{"kind":"completed"}}}

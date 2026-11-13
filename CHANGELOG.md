@@ -36,6 +36,10 @@
   改名提示与「请安装 latest」）
 - 文档同步：README 顶部加 npm 版本 / 许可证徽章；介绍页导航栏与页脚加 npm 入口，页面上的
   版本号统一到 0.36.5（npm 包页的 README 是发布那一刻的快照，徽章要下次发版才显示）
+- CI：新增 `.github/workflows/publish.yml`，推 `v*` tag 时经 npm trusted publishing（GitHub
+  OIDC）自动发版，**仓库里不再需要 NPM_TOKEN**，provenance 自动附带；workflow 先跑
+  lint/typecheck/test，校验 tag 与 `package.json` 版本一致，已发布过的版本直接跳过。启用前
+  需维护者在 npm 侧登记一次 trusted publisher（`npm trust github …`）
 
 ## [0.36.4] - 2026-11-13
 

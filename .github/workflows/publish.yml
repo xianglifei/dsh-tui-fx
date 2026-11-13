@@ -1,0 +1,69 @@
+# Publish to npm through the registry's trusted-publisher (OIDC) flow: no
+# NPM_TOKEN lives in this repository. The npm CLI exchanges the GitHub Actions
+# OIDC token for short-lived registry credentials and attaches provenance.
+#
+# One-time setup (maintainer, 2FA):
+#   npm trust github dsh-tui-fx --file publish.yml --repo xianglifei/dsh-tui-fx --allow-publish
+# The workflow filename above must match the trusted-publisher entry exactly.
+
+name: Publish
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: npm-publish-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      # Trusted publishing needs npm >= 11.5.1; the OIDC exchange replaces NPM_TOKEN.
+      - name: Ensure npm supports trusted publishing
+        run: |
+          npm install -g npm@latest
+          npm --version
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+
+      - name: Require the tag to match package.json
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="${GITHUB_REF_NAME#v}"
+          echo "package=$VERSION tag=$TAG"
+          test "$VERSION" = "$TAG"
+
+      - name: Skip a version that is already published
+        id: check
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if npm view "dsh-tui-fx@$VERSION" version >/dev/null 2>&1; then
+            echo "dsh-tui-fx@$VERSION is already on the registry; nothing to publish"
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # No NODE_AUTH_TOKEN here on purpose: a token would take precedence over the
+      # OIDC exchange, and provenance is automatic for a trusted publisher.
+      - name: Publish to npm
+        if: steps.check.outputs.published != 'true'
+        run: npm publish --access public

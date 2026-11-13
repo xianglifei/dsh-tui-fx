@@ -220,6 +220,18 @@ b code {
   letter-spacing: .04em;
   color: var(--text-3);
 }
+.nav-npm {
+  padding: 2px 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 9.5px;
+  letter-spacing: .04em;
+  color: var(--text-3);
+  text-decoration: none;
+  transition: color .15s ease, border-color .15s ease;
+}
+.nav-npm:hover { color: var(--text); border-color: var(--border); }
 .icon-btn {
   width: 32px;
   height: 32px;
@@ -1076,7 +1088,7 @@ kbd {
 }
 
 @media (max-width: 860px) {
-  .nav-links, .nav-version { display: none; }
+  .nav-links, .nav-version, .nav-npm { display: none; }
   .hero { padding-top: 64px; }
   .section { padding-top: 84px; }
   .split { grid-template-columns: minmax(0, 1fr); gap: 34px; }

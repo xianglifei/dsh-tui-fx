@@ -16,7 +16,7 @@ const toolResult = (seq: number, callId: string): ReturnType<typeof sessionEvent
   sessionEvent('tool/result', {
     turn: 1,
     step: 1,
-    message: { role: 'tool', content: [{ type: 'tool-result', toolCallId: callId, content: [{ type: 'text', text: 'ok' }] }] },
+    message: { role: 'tool', toolCallId: callId, content: [{ type: 'text', text: 'ok' }] },
   }, seq)
 const userMessage = (seq: number, text: string): ReturnType<typeof sessionEvent> =>
   sessionEvent('user/message', { turn: 1, content: [{ type: 'text', text }], source: { kind: 'user' } }, seq)

@@ -32,7 +32,8 @@
   可能撞上 tarball 的负缓存 404，重试即可）。从 registry 实测：临时 `DSH_HOME` 里
   `dsh plugin --profile fx add dsh-tui-fx` 安装 `^0.36.5`、bundles 自动登记、`fx --help`
   报 `v0.36.5`；`npm install -g dsh-tui-fx --prefix <临时目录>` 同样能生成 `fx`。
-  旧包 `fx-tui` 的 deprecated 标记需账号 2FA 确认后生效
+  旧包 `fx-tui@0.36.4` 与 `dsh-tui-fx@0.0.0-stage` 占位均已标 deprecated（`npm view` 可见
+  改名提示与「请安装 latest」）
 - 文档同步：README 顶部加 npm 版本 / 许可证徽章；介绍页导航栏与页脚加 npm 入口，页面上的
   版本号统一到 0.36.5（npm 包页的 README 是发布那一刻的快照，徽章要下次发版才显示）
 

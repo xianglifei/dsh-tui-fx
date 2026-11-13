@@ -10,7 +10,7 @@
     "builtin": true,
     "node": true
   },
-  "ignorePatterns": ["lib/**", "node_modules/**", "coverage/**"],
+  "ignorePatterns": ["lib/**", "node_modules/**", "coverage/**", "docs/**"],
   "rules": {
     "no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_", "caughtErrorsIgnorePattern": "^_" }],
     "eqeqeq": ["error", "always", { "null": "ignore" }],

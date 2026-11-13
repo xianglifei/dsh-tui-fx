@@ -1,0 +1,36 @@
+{
+  "model": "deepseek-official/deepseek-flash",
+  "phase": "idle",
+  "items": [
+    {
+      "kind": "user",
+      "text": "跑一下测试"
+    },
+    {
+      "kind": "tool",
+      "name": "bash",
+      "title": "bash",
+      "args": "{\"command\":\"pnpm test\"}",
+      "ok": true,
+      "result": "383 passed (34 files)",
+      "elapsedMs": 1100,
+      "verbose": false
+    },
+    {
+      "kind": "tool",
+      "name": "bash",
+      "title": "bash",
+      "args": "{\"command\":\"ls /nope\"}",
+      "ok": false,
+      "result": "ls: /nope: No such file or directory",
+      "elapsedMs": 100,
+      "verbose": false
+    },
+    {
+      "kind": "assistant",
+      "text": "测试全绿；`ls /nope` 按预期失败。",
+      "interrupted": false
+    }
+  ],
+  "queued": []
+}

@@ -65,10 +65,10 @@ pnpm typecheck          # 这一步的错误清单就是迁移工作量
 |---|---|---|
 | L0 | `pnpm lint && pnpm typecheck && pnpm run build` | 0 error |
 | L1 | `pnpm test` | 全绿（0.2.2 那次 368 用例） |
-| L2 | 用真实会话日志回放 `lib/store.js` | 不抛错、transcript 与截图一致 |
+| L2 | `pnpm build && node scripts/replay-session.mjs test/fixtures/session-logs/<name>.jsonl` | 与同名 `.expected.json` 一致；`pnpm test` 已含这一层 |
 | L3 | `scripts/tui-stability-matrix.sh` | 既有 4 条不变量不退化 |
-| L4 | 手工冒烟：发消息流式 → 工具卡片 → 审批卡 → 提问卡 → `/model` 切换后发一条消息 → `/status` → `/cost` → `/tree` → `/export` → Ctrl+C 两次 | 每项符合预期，`/model` 后请求头与状态栏一致 |
-| L5 | `--resume` 一个旧版本会话 | banner、`/tree`、`/export` 正常 |
+| L4 | 手工冒烟：发消息流式 → 工具卡片 → 审批卡 → 提问卡 → 运行中 Tab 排队两条 + Alt+↑ 取回一条 → `/model` 切换后发一条消息 → `/status` → `/cost` → `/tree` → `/export`（有系统提示词或工具变更时看两个附录）→ Ctrl+C 两次 | 每项符合预期，`/model` 后请求头与状态栏一致 |
+| L5 | `--resume` 一个旧版本会话 | banner、`/tree`、`/export` 正常；日志里仍有 pending inbox 时托盘要显示（0.37.0+） |
 
 L3/L4 必须在真终端里做（`tmux`/`script` 都行）；CI 只能覆盖 L0–L1。
 

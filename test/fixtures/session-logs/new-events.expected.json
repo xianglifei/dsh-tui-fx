@@ -1,0 +1,31 @@
+{
+  "model": "deepseek-official/deepseek-v4-pro",
+  "phase": "idle",
+  "items": [
+    {
+      "kind": "user",
+      "text": "改一下文档"
+    },
+    {
+      "kind": "assistant",
+      "text": "好。",
+      "interrupted": false
+    }
+  ],
+  "queued": [
+    {
+      "id": "q1",
+      "text": "下一轮做 E2E",
+      "images": [],
+      "outputs": [],
+      "mode": "queue"
+    },
+    {
+      "id": "q2",
+      "text": "换个方向",
+      "images": [],
+      "outputs": [],
+      "mode": "steer"
+    }
+  ]
+}

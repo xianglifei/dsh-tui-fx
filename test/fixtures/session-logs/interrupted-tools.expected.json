@@ -1,0 +1,21 @@
+{
+  "model": "deepseek-official/deepseek-flash",
+  "phase": "idle",
+  "items": [
+    {
+      "kind": "user",
+      "text": "跑一个很久的命令"
+    },
+    {
+      "kind": "tool",
+      "name": "bash",
+      "title": "bash",
+      "args": "{\"command\":\"sleep 600\"}",
+      "ok": true,
+      "result": "(结果未记录)",
+      "elapsedMs": 0,
+      "verbose": false
+    }
+  ],
+  "queued": []
+}

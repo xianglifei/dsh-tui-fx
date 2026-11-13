@@ -5,12 +5,14 @@
 
 import type { SkillCatalog } from './menu.js'
 import { runBalance, runLogin, runLogout, runProvider } from './account.js'
+import { runAgents } from './agents.js'
 import { runBtw } from './btw.js'
 import { runConfig } from './config.js'
 import { runCopy } from './copy.js'
 import { exportSession } from './export.js'
 import { runContext, runCost, runDoctor, runHelp, runInit, runLogs, runRestart, runStatus } from './info.js'
 import { runImage } from './image.js'
+import { runJobs } from './jobs.js'
 import { listModelChoices, runEffort } from './model.js'
 import { listSessionChoices, runClear, runFork, runNew, runRename, runResume, runRewind } from './session.js'
 import { runSkills } from './skills.js'
@@ -113,6 +115,12 @@ export function createCommandRunner(c: CommandCtx, catalog: SkillCatalog): (line
           return
         case 'trace':
           runTrace(c)
+          return
+        case 'jobs':
+          runJobs(c, rest)
+          return
+        case 'agents':
+          await runAgents(c, rest)
           return
         case 'skills':
           await runSkills(c, catalog)

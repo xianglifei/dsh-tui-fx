@@ -51,6 +51,7 @@ import type {} from '@deepseek-ai/dsh-user-approval'
 import type {} from '@deepseek-ai/dsh-user-questions'
 
 import { ApprovalMemory } from './approval-memory.js'
+import { JobWatcher } from './jobs.js'
 import { maybeAutoUpdate } from './auto-update.js'
 import { HostDiagnostics } from './host-diagnostics.js'
 import { FxSettings } from './settings.js'
@@ -286,18 +287,35 @@ async function main(ctx: Context, exit: (code: number) => void | Promise<void>):
   })
   store.replay(agent.session.snapshotEvents())
   store.finishReplay()
+  // Background jobs: the status-line count, completion lines, and `/jobs` all
+  // read one registry stream owned by the live session.
+  const jobWatcher = new JobWatcher(ctx, store, agent.session.id)
+  jobWatcher.start()
+  let announcedJobs = 0
 
-  // Live subagent tracking: children created against this session show a badge.
-  const childAgents = new Set<string>()
-  const syncChildCount = (): void => { store.setChildAgentCount(childAgents.size) }
+  // Live subagent tracking: the badge counts children that are *working*, not
+  // children that merely stay resident — a continuable child outlives its task
+  // by design, and counting it made a finished run look stuck.
+  const childAgents = new Map<string, Agent>()
+  const syncChildCount = (): void => {
+    let running = 0
+    for (const child of childAgents.values()) if (child.status === 'running') running += 1
+    store.setChildAgentCount(running)
+  }
   ctx.on('agent/created', payload => {
     if (payload.agent.session.header.parentSession === agent.session.id) {
-      childAgents.add(payload.agent.id)
+      childAgents.set(payload.agent.id, payload.agent)
       syncChildCount()
     }
   })
   ctx.on('agent/disposed', payload => {
     if (childAgents.delete(payload.agent.id)) syncChildCount()
+  })
+  ctx.on('agent/status', payload => {
+    const child = childAgents.get(payload.agent.id)
+    if (child === undefined) return
+    childAgents.set(payload.agent.id, payload.agent)
+    syncChildCount()
   })
 
   ctx.on('session/event', (session, event) => {
@@ -321,6 +339,15 @@ async function main(ctx: Context, exit: (code: number) => void | Promise<void>):
       }
       // Event-driven status-line refresh (git branch, custom command).
       statusLineWatcher.refresh('turn-end')
+      // Leaving a turn with live background work is a fact the user should
+      // hear once per distinct count, not once per turn.
+      const running = jobWatcher.runningCount()
+      if (running > 0 && running !== announcedJobs) {
+        announcedJobs = running
+        store.addNotice(`仍有 ${running} 个后台任务在跑 · /jobs 查看`)
+      } else if (running === 0) {
+        announcedJobs = 0
+      }
     }
     // Refresh context pressure once per completed step: the meter is O(surface)
     // and the next request's size is what the user cares about.
@@ -467,6 +494,7 @@ async function main(ctx: Context, exit: (code: number) => void | Promise<void>):
     dshVersion: readDshVersion,
     debugLog,
     hostDiagnostics: () => hostDiagnostics.entries(),
+    jobs: () => jobWatcher.access(),
     submitMessage: text => actions.onSubmit(text),
     switchSession,
     startSession,
@@ -526,6 +554,8 @@ async function main(ctx: Context, exit: (code: number) => void | Promise<void>):
     void catalog.refresh()
     childAgents.clear()
     syncChildCount()
+    jobWatcher.retarget(agent.session.id)
+    announcedJobs = 0
     autoCompactTried = false
     store.reset(agent.id, modelLabel(), agent.session.snapshotEvents())
     // The custom status output belongs to the outgoing session; repopulate
@@ -623,6 +653,7 @@ async function shutdown(opts?: { respawn?: boolean }): Promise<void> {
   // Release stderr before the farewell: the terminal is no longer ours to filter.
   hostDiagnostics.dispose()
   instance?.unmount()
+  jobWatcher.stop()
   store.dispose()
   if (agent.status === 'running') {
     agent.cancel({ kind: 'user' })

@@ -256,6 +256,7 @@ export function App(props: AppProps): ReactElement {
           contextTokens={snap.contextTokens}
           contextWindow={snap.contextWindow}
           childAgents={snap.childAgents}
+          jobs={snap.jobs}
           effortLabel={snap.effortLabel}
           retryWait={snap.retryWait}
           items={snap.statusLineItems}

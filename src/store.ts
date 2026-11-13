@@ -156,6 +156,8 @@ export interface Snapshot {
   readonly queuedMessages: readonly QueuedMessage[]
   readonly todos: readonly TodoItem[]
   readonly childAgents: number
+  /** Live background jobs owned by this session (running + stopping). */
+  readonly jobs: number
   readonly verboseTranscript: boolean
   readonly streaming: string
   readonly phase: Phase
@@ -230,6 +232,7 @@ export class TuiStore {
   private ownSelection: ModelSelection | null = null
   private todos: TodoItem[] = []
   private childAgentCount = 0
+  private jobCount = 0
   private verboseTranscript = false
   private streamBuf = ''
   private streamText = ''
@@ -311,6 +314,7 @@ export class TuiStore {
       queuedMessages: [...this.queuedMessages],
       todos: [...this.todos],
       childAgents: this.childAgentCount,
+      jobs: this.jobCount,
       verboseTranscript: this.verboseTranscript,
       streaming: this.streamText,
       phase: this.phase,
@@ -845,6 +849,7 @@ export class TuiStore {
     this.resetQueueState()
     this.todos = []
     this.childAgentCount = 0
+    this.jobCount = 0
     this.turnToolCalls = 0
     this.retryWait = null
     this.streamBuf = ''
@@ -899,6 +904,13 @@ export class TuiStore {
   setCompacting(value: boolean): void {
     if (this.compacting === value) return
     this.compacting = value
+    this.commit()
+  }
+
+  /** Live background-job count from the registry (chips + turn-end line). */
+  setJobCount(count: number): void {
+    if (this.jobCount === count) return
+    this.jobCount = count
     this.commit()
   }
 

@@ -61,7 +61,7 @@ fx --resume <id>                    # 恢复会话
 | `y` `s` `a` `n` | 审批：一次 / 本会话 / 总是（记住）/ 拒绝 |
 | 数字键 | 问题选项选择 |
 | `!命令` | **shell 直通**：本地执行并显示结果，输出自动**暂存**、随下一条消息进入对话上下文（`!!` 仅本地查看）；首词补命令、其余补路径（Tab 补全，Enter 执行）；空输入框 `⌫` 撤销最后一条暂存、`⌥⌫` 清空 |
-| `/help` `/status` `/sessions` `/rename` `/model` `/effort` `/btw` `/context` `/doctor` `/config` `/theme` `/export` `/copy` `/edit` `/image <路径…>` `/update` `/exit` | 内置命令（`/` 查看全部） |
+| `/help` `/status` `/sessions` `/rename` `/model` `/effort` `/btw` `/context` `/doctor` `/config` `/theme` `/export` `/copy` `/edit` `/image <路径…>` `/jobs` `/agents` `/update` `/exit` | 内置命令（`/` 查看全部） |
 
 ### 审批记忆
 

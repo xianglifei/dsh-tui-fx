@@ -68,7 +68,13 @@ export interface CtxHarness {
  * read it (/fork, /rewind, /trace, /export). */
 export function makeCtx(
   overrides: Partial<CommandCtx> = {},
-  options: { readonly events?: readonly SessionEvent[] } = {},
+  options: {
+    readonly events?: readonly SessionEvent[]
+    /** Services returned by `ctx.get(name)`; everything else stays undefined. */
+    readonly services?: Readonly<Record<string, unknown>>
+    /** Direct properties on the stub context (e.g. `agents`), merged last. */
+    readonly ctx?: Readonly<Record<string, unknown>>
+  } = {},
 ): CtxHarness {
   const store = new TuiStore('s1', 'p/m')
   const settings = new FxSettings(tempDshHome())
@@ -120,7 +126,7 @@ export function makeCtx(
 
   const selection: ModelSelection = { provider: 'p', model: 'm' }
 
-  const ctx = {
+  const ctxBase = {
     commands: {
       list: (): readonly { name: string; description: string }[] => [],
       find: (): undefined => undefined,
@@ -142,8 +148,15 @@ export function makeCtx(
       readTitle: async (): Promise<undefined> => undefined,
       readTitleSnapshots: async (): Promise<readonly never[]> => [],
     },
-    get: (): undefined => undefined,
     registry: { forEach: (): void => {} },
+  }
+  // `services` doubles as the `ctx.get(name)` source and as direct context
+  // properties (`sessionQuery`, `agents`), so one option seeds both seams.
+  const ctx = {
+    ...ctxBase,
+    ...options.services,
+    get: (name: string): unknown => options.services?.[name],
+    ...options.ctx,
   } as unknown as Context
 
   const c: CommandCtx = {

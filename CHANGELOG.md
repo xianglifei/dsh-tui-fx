@@ -42,6 +42,10 @@ dsh plugin --profile fx add fx-tui  # 装 dsh 插件，自动登记进 fx profil
   `dsh plugin --profile fx add fx-tui` 安装 `^0.36.4`、bundles 自动登记、`fx --help`
   报 `v0.36.4`；`npm install -g fx-tui --prefix <临时目录>` 也能正确生成 `fx` 命令。
   README、安装指南与介绍页均已切到 npm 路径
+- 顺带修正 `bin/fx` 的两处陈旧文案（Node 下限写的是 ≥22.19，仓库链接还停在改名前的
+  `xianglifei/fx-tui`），并在 README 安装段明确「不要从 dsh GUI 的插件面板安装本包」
+  ——它是终端 bundle，runner 需要 CLI launcher 的 `appExit` 与 TTY，装进 GUI profile 会
+  加载失败（本次发布后需重新发版才会同步到 npm 页面）
 
 ## [0.36.3] - 2026-11-13
 

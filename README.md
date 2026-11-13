@@ -13,6 +13,10 @@
 > [docs/windows-support-notes.md](docs/windows-support-notes.md)，重启适配时以此为准）。
 > Windows 用户可先用 dsh 上游自带的 Web UI（`dsh web`）。
 
+> **别在 dsh GUI 的「添加插件」里装这个包。** fx-tui 是**终端界面**，runner 需要 CLI
+> launcher 提供的 `appExit` 与 Ink 的 TTY；装进 web/桌面 profile 会在启动时加载失败。
+> 请用下面的终端命令装进 `fx` profile。
+
 把下面这句话复制给任意终端编码 agent（Claude Code、ZCode 等），它会读取安装指南、自动装好并验证：
 
 ```text

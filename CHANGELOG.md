@@ -3,6 +3,52 @@
 本项目的所有显著变更记录于此。版本格式遵循 [SemVer](https://semver.org/)，
 条目参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [0.36.1] - 2026-11-13
+
+### 修复：宿主诊断不再裸落在画面上（stderr 归口）
+
+启动或首轮请求后，终端里会冒出一行
+`[llm-deepseek-api-key] model listing from https://api.deepseek.com/models loaded 2 model(s), skipped 0 row(s)`。
+它不是报错，是 dsh 的 DeepSeek provider 同步模型目录时打的 info —— 但
+`createModelListingCache` 用的是 `console.error`（`dsh-llm-deepseek/lib/index.js:2681`）：
+profile 没给 `ctx.logger` 装导出通道，插件就把诊断直接写进 stderr。
+
+**为什么必须由 TUI 收**：这一行要么在 Ink 接管之前裸打在 banner 上方，要么在之后触发
+Ink 的 `writeToStderr` —— 抹掉当前帧、写到真 stderr、再重画，行就永久留在 scrollback
+里，夹在对话中间；`modelsMaxAgeMs` 默认 600000，每 10 分钟的目录刷新还会再来一次。
+fx 是唯一接管画面的进程，画面里出现什么行该由 fx 决定。
+
+**收编而不是屏蔽**：新增 `src/host-diagnostics.ts`，在模块导入期替换
+`process.stderr.write`（早于 loader 挂载任何兄弟插件，因此启动期那条也覆盖）——
+首行匹配 `[tag] ` 且 tag 属于已知宿主插件（`llm-deepseek-api-key`、
+`llm-deepseek-account`）的行进入 200 条环形缓冲，相邻同文合并计数；其余字节
+（崩溃栈、子进程输出、Node 警告）原样透传。`/doctor` 新增「宿主诊断」段：总条数 +
+最近 5 条（时间、tag、×重复次数）。`FX_TUI_STDERR_RAW=1` 可整体还原直通；
+`shutdown()` 在打印 farewell 前恢复原始 writer。
+
+**取舍**：不用 `modelsMaxAgeMs: 0` 关刷新 —— 首次拉取照旧（清单是解析模型所必需），
+而且会让目录不再跟随服务端；不用 `2>/dev/null` —— 会连带吞掉 fx 自己的崩溃输出。
+行被吞时 Ink 仍会重画一帧（不可见），换来画面里不再有异物。
+
+已知边界：`console.error(tag, message)` 一次写整行，过滤器按整行匹配；被拆成多次
+写入的行会当作普通 stderr 透传 —— 宁可漏收，不延迟真实输出。
+
+### 顺带：docs 站点的 3 处 lint 报错
+
+`docs/app.js` 自 0.36.0 后的站点提交起让 `pnpm lint` 一直红着（CI 的 `verify` 会在
+lint 步骤失败）：未使用的 catch 参数、`then()` 无返回值、`window.__siteReady` 的
+下划线命名。本版按最小改动修掉，unused catch 改用可选绑定写法、`then()` 显式
+`return undefined`、`__siteReady` 改用下标赋值（`index.html` 的兜底计时器读的是同一个
+属性，行为不变）。
+
+### 验证
+
+- `pnpm lint` 0 warning / 0 error；双 tsconfig `typecheck` 0 error；`pnpm test`
+  **378 用例**（34 文件，新增 host-diagnostics 8 例、/doctor 2 例）；`pnpm run build` 通过
+- 过滤器行为由单测钉死：命中吞掉并记录、未命中逐字节透传、混合写入只保留未命中部分、
+  相邻同文合并、环形上限淘汰、`dispose()` 还原、`FX_TUI_STDERR_RAW=1` 直通、被吞时
+  仍回调写入方
+
 ## [0.36.0] - 2026-11-13
 
 ### 功能：dsh 基座 0.1.5-rc.2 → 0.2.2-rc.1，顺带修掉两处静默失效

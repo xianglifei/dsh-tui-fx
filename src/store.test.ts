@@ -604,3 +604,84 @@ describe('TuiStore model/selection', () => {
     expect(store.getSnapshot().items).toEqual([])
   })
 })
+
+// -- Session modes（goal / plan）--------------------------------------------
+
+const GOAL_CHANGE = (data: unknown, time: number): SessionEvent => ev('goal/change', data, time)
+const PLAN_MODE = (active: boolean, time: number): SessionEvent => ev('plan/mode', { active }, time)
+const GOAL_ROUND = (round: number, time: number): SessionEvent =>
+  ev('user/message', { id: `g${round}`, source: { kind: 'goal', round }, content: [{ type: 'text', text: '继续推进目标' }] }, time)
+
+const goalSnapshot = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
+  operation: 'create',
+  roundsStarted: 3,
+  createdAt: 1,
+  updatedAt: 2,
+  goal: { id: 'g1', revision: 1, objective: '把 CI 修绿', phase: 'active', maxGoalRounds: 256 },
+  ...over,
+})
+
+describe('TuiStore session modes', () => {
+  it('folds a goal snapshot into the chip state', () => {
+    const store = new TuiStore('s1', 'model')
+    store.onEvent(GOAL_CHANGE(goalSnapshot(), 1))
+
+    expect(store.getSnapshot().goal).toEqual({
+      phase: 'active',
+      roundsStarted: 3,
+      maxGoalRounds: 256,
+      objective: '把 CI 修绿',
+    })
+  })
+
+  it('keeps the blocked reason for /status', () => {
+    const store = new TuiStore('s1', 'model')
+    store.onEvent(GOAL_CHANGE(goalSnapshot({
+      goal: { id: 'g1', revision: 2, objective: 'x', phase: 'blocked', maxGoalRounds: 10, blockedReason: { code: 'need-pr', message: '缺少 PR 链接' } },
+      roundsStarted: 4,
+    }), 1))
+
+    expect(store.getSnapshot().goal).toMatchObject({ phase: 'blocked', blockedMessage: '缺少 PR 链接' })
+  })
+
+  it('clears the goal on a clear tombstone', () => {
+    const store = new TuiStore('s1', 'model')
+    store.onEvent(GOAL_CHANGE(goalSnapshot(), 1))
+    store.onEvent(GOAL_CHANGE({ operation: 'clear', cleared: { id: 'g1', revision: 3 }, clearedAt: 5 }, 2))
+    expect(store.getSnapshot().goal).toBeNull()
+  })
+
+  it('tracks plan mode', () => {
+    const store = new TuiStore('s1', 'model')
+    store.onEvent(PLAN_MODE(true, 1))
+    expect(store.getSnapshot().planActive).toBe(true)
+    store.onEvent(PLAN_MODE(false, 2))
+    expect(store.getSnapshot().planActive).toBe(false)
+  })
+
+  it('separates an automatic goal round instead of rendering it as the user', () => {
+    const store = new TuiStore('s1', 'model')
+    store.onEvent(GOAL_CHANGE(goalSnapshot(), 1))
+    store.onEvent(GOAL_ROUND(4, 2))
+
+    const items = store.getSnapshot().items
+    expect(items.at(-1)).toMatchObject({ kind: 'notice', text: '── 目标续行 · 第 4 轮（上限 256） ──' })
+    expect(items.some(item => item.kind === 'user')).toBe(false)
+  })
+
+  it('stays quiet when goal-round separators are off', () => {
+    const store = new TuiStore('s1', 'model')
+    store.setGoalRoundsMode('quiet')
+    store.onEvent(GOAL_ROUND(2, 2))
+    expect(store.getSnapshot().items).toEqual([])
+  })
+
+  it('does not redraw separators while replaying a resumed session', () => {
+    const store = new TuiStore('s1', 'model')
+    store.replay([GOAL_CHANGE(goalSnapshot(), 1), GOAL_ROUND(4, 2)])
+    store.finishReplay()
+
+    expect(store.getSnapshot().items).toEqual([])
+    expect(store.getSnapshot().goal).toMatchObject({ roundsStarted: 3 })
+  })
+})

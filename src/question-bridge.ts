@@ -19,6 +19,9 @@ export interface ActiveQuestion {
   readonly cursor: number
   /** First visible option of the QUESTION_WINDOW sliding window. */
   readonly scroll: number
+  /** Page of a long plan-review body (0-based); the view clamps to its page
+   * count, so a shrinking body can never point past the end. */
+  readonly planPage: number
 }
 
 /** Options visible at once in a question card; a longer list scrolls through
@@ -103,6 +106,17 @@ export class QuestionBridge {
     this.advance()
   }
 
+  /** Turn one page of a plan-review body; other cards ignore it. */
+  pagePlan(delta: 1 | -1): void {
+    const active = this.active
+    if (active === null) return
+    if (active.item.intent?.kind !== 'plan-review') return
+    const planPage = Math.max(0, active.planPage + delta)
+    if (planPage === active.planPage) return
+    this.active = { ...active, planPage }
+    this.hooks.commit()
+  }
+
   /** Skip the active question with no selection. */
   skip(): void {
     const active = this.active
@@ -157,6 +171,7 @@ export class QuestionBridge {
       total: this.answers.length + 1 + this.queue.length,
       cursor: approveIndex >= 0 ? approveIndex : 0,
       scroll: 0,
+      planPage: 0,
     }
     this.hooks.commit()
   }

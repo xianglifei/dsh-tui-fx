@@ -95,3 +95,27 @@ describe('/config interactive form', () => {
     expect(settings.approvalMode).toBe('auto')
   })
 })
+
+describe('/config goalrounds', () => {
+  it('persists the choice and applies it to the live session', async () => {
+    const { c, settings, store } = makeCtx()
+    await runConfig(c, 'goalrounds quiet')
+
+    expect(settings.goalRounds).toBe('quiet')
+    expect(c.store.getSnapshot()).toBe(store.getSnapshot())
+    // The live reducer stops emitting separators immediately.
+    store.onEvent({ type: 'user/message', data: { id: 'g1', source: { kind: 'goal', round: 2 }, content: [] }, time: 1 } as never)
+    expect(store.getSnapshot().items.some(item => item.kind === 'notice' && item.text.startsWith('── 目标续行'))).toBe(false)
+  })
+
+  it('accepts the Chinese aliases and explains a bad value', async () => {
+    const first = makeCtx()
+    await runConfig(first.c, 'goalrounds 静默')
+    expect(first.settings.goalRounds).toBe('quiet')
+
+    const second = makeCtx()
+    await runConfig(second.c, 'goalrounds sometimes')
+    expect(second.settings.goalRounds).toBe('timeline')
+    expect(second.log.notices[0]).toContain('用法：/config goalrounds')
+  })
+})

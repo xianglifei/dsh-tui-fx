@@ -9,6 +9,7 @@ import { notifyModeLabel } from '../notify.js'
 import { truncateLine } from '../text.js'
 import type { CommandCtx } from './types.js'
 import { currentSessionTitle } from './session.js'
+import { modesSummary } from '../modes.js'
 import { modeLabel } from './config.js'
 import { themeSettingLabel } from './theme.js'
 
@@ -54,6 +55,19 @@ export async function runStatus(c: CommandCtx): Promise<void> {
     ? `${snapshot.contextTokens} / ${snapshot.contextWindow} tokens`
     : `${snapshot.contextTokens} tokens`
   const title = await currentSessionTitle(c)
+  const summary = modesSummary({
+    planActive: snapshot.planActive,
+    goal: snapshot.goal,
+    jobs: snapshot.jobs,
+    childAgents: snapshot.childAgents,
+  })
+  const modeLines: string[] = []
+  if (summary !== '') {
+    modeLines.push(summary)
+    if (snapshot.goal !== null && snapshot.goal.phase === 'blocked' && snapshot.goal.blockedMessage !== undefined) {
+      modeLines.push(`目标受阻：${snapshot.goal.blockedMessage}`)
+    }
+  }
   const pluginLines = plugins.slice(0, 15).map(name => `· ${name}`)
   if (plugins.length > 15) pluginLines.push(`…（共 ${plugins.length} 个插件）`)
   c.store.addPanel('运行状态', [
@@ -64,6 +78,9 @@ export async function runStatus(c: CommandCtx): Promise<void> {
     `主题：${themeSavedLabel === themeActiveLabel ? themeActiveLabel : `${themeSavedLabel}，显示为${themeActiveLabel}`}（/theme 修改）`,
     `通知：${notifyModeLabel(c.settings.notify)}（/config notify 修改） · 自动压缩：${c.settings.autoCompact ? '开启' : '关闭'}（/config autocompact 修改）`,
     `上下文：${context} · 工作区：${process.cwd()}`,
+    // Everything the status bar can only show as chips: plan mode, goal
+    // progress, live jobs, running subagents.
+    ...modeLines,
     '',
     `已加载插件（${plugins.length}）：`,
     ...pluginLines,

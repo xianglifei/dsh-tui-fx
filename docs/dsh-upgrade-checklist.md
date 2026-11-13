@@ -67,7 +67,8 @@ pnpm typecheck          # 这一步的错误清单就是迁移工作量
 | L1 | `pnpm test` | 全绿（0.2.2 那次 368 用例） |
 | L2 | `pnpm test`（单元 + 回放）与 `pnpm test:integration`（真 Agent + 脚本模型） | 全绿；回放与同名 `.expected.json` 一致 |
 | L3 | `scripts/tui-stability-matrix.sh` | 既有 4 条不变量不退化 |
-| L4 | 手工冒烟：发消息流式 → 工具卡片 → 审批卡 → 提问卡 → 运行中 Tab 排队两条 + Alt+↑ 取回一条 → `/model` 切换后发一条消息 → `/status` → `/cost` → `/tree` → `/export`（有系统提示词或工具变更时看两个附录）→ Ctrl+C 两次 | 每项符合预期，`/model` 后请求头与状态栏一致 |
+| L4 | 手工冒烟：发消息流式 → 工具卡片 → 审批卡 → 提问卡 → 运行中 Tab 排队两条 + Alt+↑ 取回一条 → `/model` 切换后发一条消息 → `/status`（看模式汇总行）→ `/cost` → `/tree` → `/export`（有系统提示词或工具变更时看两个附录）→ Ctrl+C 两次 | 每项符合预期，`/model` 后请求头与状态栏一致 |
+| L4b | 模式面：`/goal` 建一个两轮能完成的假目标（看 `◎ 目标 n/m` 与续行分隔，再 `/config goalrounds quiet` 验静默）→ `/plan` 让它给一份 40+ 行计划（`PgUp/PgDn` 翻页、批准后从下一步执行、Esc 关闭＝改发言） | chip 文案与阶段一致；计划卡不把输入框挤出屏幕 |
 | L5 | `--resume` 一个旧版本会话 | banner、`/tree`、`/export` 正常；日志里仍有 pending inbox 时托盘要显示（0.37.0+） |
 
 L3/L4 必须在真终端里做（`tmux`/`script` 都行）；CI 只能覆盖 L0–L1。

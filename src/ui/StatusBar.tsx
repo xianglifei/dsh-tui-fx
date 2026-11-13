@@ -11,6 +11,8 @@ import { useEffect, useState } from 'react'
 import type { ReactElement } from 'react'
 import { Box, Text, useStdout } from 'ink'
 import stringWidth from 'string-width'
+import { goalChip, goalChipTone, planChip } from '../modes.js'
+import type { GoalChipState } from '../modes.js'
 import type { Phase, RetryWait } from '../store.js'
 import { buildStatusSegments } from '../statusline.js'
 import type { StatusLineItemId } from '../statusline.js'
@@ -46,6 +48,10 @@ export interface StatusBarProps {
   childAgents: number
   /** Live background jobs owned by this session; 0 hides the chip. */
   jobs: number
+  /** Plan mode on for this session (chip hidden when off). */
+  planActive: boolean
+  /** Current goal state, or null when none is current. */
+  goal: GoalChipState | null
   /** Reasoning effort carried by the latest request ('' when none/default). */
   effortLabel: string
   /** Live LLM retry wait; null when the current request is not backing off. */
@@ -125,8 +131,21 @@ export function StatusBar(props: StatusBarProps): ReactElement {
   // the detail, before it is allowed to break the line.
   const spinnerCells = displayWidth(active ? frame : '●')
   let left = ` ${label}`
-  if (props.jobs > 0) left += ` · ⚙×${props.jobs}`
-  if (props.childAgents > 0) left += ` · 🌱×${props.childAgents}`
+  // Mode chips lead (plan > goal), then counts: a mode is a fact about what
+  // the session will do next, a count is only how much work is in flight. They
+  // render as separate cells so a blocked goal can carry its own color without
+  // splitting the label string the width budget measures.
+  const narrow = width < 60
+  const plan = planChip(props.planActive, width < 50)
+  const goal = goalChip(props.goal, narrow)
+  const chips: { text: string; tone?: 'danger' | 'warning' }[] = []
+  if (plan !== '') chips.push({ text: ` · ${plan}` })
+  if (goal !== '') {
+    const tone = goalChipTone(props.goal)
+    chips.push(tone === undefined ? { text: ` · ${goal}` } : { text: ` · ${goal}`, tone })
+  }
+  if (props.jobs > 0) chips.push({ text: ` · ⚙×${props.jobs}` })
+  if (props.childAgents > 0) chips.push({ text: ` · 🌱×${props.childAgents}` })
   const withDetail = props.detail !== '' ? `${left} · ${props.detail}` : left
   const withReasoning = props.phase === 'thinking' && props.reasoningChars > 0
     ? `${withDetail} · 已思考 ${formatCount(props.reasoningChars)} 字`
@@ -145,6 +164,15 @@ export function StatusBar(props: StatusBarProps): ReactElement {
     <Box>
       <Text color={active ? theme.accent : theme.success}>{active ? frame : '●'}</Text>
       <Text>{left}</Text>
+      {chips.map((chip, index) => (
+        <Text
+          key={index}
+          color={chip.tone === undefined ? undefined : chip.tone === 'danger' ? theme.danger : theme.warning}
+          dimColor={chip.tone === undefined}
+        >
+          {chip.text}
+        </Text>
+      ))}
       {retrySegment !== '' && <Text color={theme.warning}>{retrySegment}</Text>}
       <Box flexGrow={1} />
       {visible.map((part, index) => (

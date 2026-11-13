@@ -25,7 +25,7 @@ import type { EditorState, MenuEntry } from './Input.js'
 import { renderFileDiffs } from '../diff.js'
 import { renderMarkdownLines } from '../markdown.js'
 import { BANNER_BOX_HEIGHT, WelcomeBanner } from './Banner.js'
-import { estimateApprovalHeight, estimateItemHeight, estimateQuestionHeight, formatCount, formatElapsed, headTailPreview, questionHintText, questionOptionRow, terminalHeaderCommand, thinkingHeaderOf, thinkingTailRows, truncateLine, userBarRows } from './estimate.js'
+import { estimateApprovalHeight, estimateItemHeight, estimateQuestionHeight, formatCount, formatElapsed, headTailPreview, PLAN_PAGE_ROWS, questionHintText, questionOptionRow, terminalHeaderCommand, thinkingHeaderOf, thinkingTailRows, truncateLine, userBarRows } from './estimate.js'
 import { computeInputHeight, countEditorRows, editorRowsForSpace, FREE_TEXT_HINT, imageTrayRows, MENU_PANE_ROWS, outputTrayRows, seedToState } from './Input.js'
 import { textRows } from './ink-text.js'
 import { InputBox } from './Input.js'
@@ -257,6 +257,8 @@ export function App(props: AppProps): ReactElement {
           contextWindow={snap.contextWindow}
           childAgents={snap.childAgents}
           jobs={snap.jobs}
+          planActive={snap.planActive}
+          goal={snap.goal}
           effortLabel={snap.effortLabel}
           retryWait={snap.retryWait}
           items={snap.statusLineItems}
@@ -600,6 +602,10 @@ function QuestionView(props: { store: TuiStore; question: ActiveQuestion; width:
       store.moveQuestionCursor(1)
       return
     }
+    if (key.pageUp || key.pageDown) {
+      store.pageQuestionPlan(key.pageUp ? -1 : 1)
+      return
+    }
     if (key.return) {
       // Single-select confirms the highlighted option; the cursor starts on
       // the plan review's approve option, so bare Enter still approves.
@@ -627,7 +633,9 @@ function QuestionView(props: { store: TuiStore; question: ActiveQuestion; width:
   const planLines = isPlanReview && item.detail !== undefined
     ? renderMarkdownLines(item.detail, Math.max(24, props.width - 4))
     : []
-  const shownPlan = planLines.slice(0, 30)
+  const planPages = Math.max(1, Math.ceil(planLines.length / PLAN_PAGE_ROWS))
+  const planPage = Math.min(question.planPage, planPages - 1)
+  const shownPlan = planLines.slice(planPage * PLAN_PAGE_ROWS, (planPage + 1) * PLAN_PAGE_ROWS)
   const shown = options.slice(question.scroll, question.scroll + QUESTION_WINDOW)
   return (
     <Box flexDirection="column" borderStyle="round" borderColor={isPlanReview ? theme.approval : theme.info} paddingX={1}>
@@ -642,8 +650,8 @@ function QuestionView(props: { store: TuiStore; question: ActiveQuestion; width:
           {shownPlan.map((line, i) => (
             <Text key={i}>{line === '' ? ' ' : line}</Text>
           ))}
-          {planLines.length > shownPlan.length && (
-            <Text dimColor>{`…（计划共 ${planLines.length} 行，已截断显示）`}</Text>
+          {planLines.length > PLAN_PAGE_ROWS && (
+            <Text dimColor>{`…（计划共 ${planLines.length} 行 · 第 ${planPage + 1}/${planPages} 页 · PgUp/PgDn 翻页）`}</Text>
           )}
         </Box>
       )}
@@ -670,7 +678,7 @@ function QuestionView(props: { store: TuiStore; question: ActiveQuestion; width:
         <Text dimColor>{`▼（下方还有 ${options.length - question.scroll - QUESTION_WINDOW} 项）`}</Text>
       )}
       <Text dimColor>
-        {questionHintText(isPlanReview, item.multiSelect === true)}
+        {questionHintText(isPlanReview, item.multiSelect === true, planLines.length > PLAN_PAGE_ROWS)}
       </Text>
     </Box>
   )

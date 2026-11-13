@@ -12,6 +12,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
+import type { GoalRoundsMode } from './modes.js'
 import type { NotifyMode } from './notify.js'
 import { isNotifyMode } from './notify.js'
 import type { ApprovalMode } from './store.js'
@@ -34,6 +35,8 @@ export const DEFAULT_NOTIFY: NotifyMode = 'bell'
 /** Auto-compaction stays opt-in: it rewrites history, so the user turns it on deliberately. */
 export const DEFAULT_AUTO_COMPACT = false
 
+export const DEFAULT_GOAL_ROUNDS: GoalRoundsMode = 'timeline'
+
 /** The custom status command: run under the user's shell, first stdout line
  * becomes the `custom` segment. Absent means the segment is unconfigured. */
 export interface StatusLineCommandConfig {
@@ -48,6 +51,7 @@ interface SettingsFile {
   theme?: ThemeSetting
   notify?: NotifyMode
   autoCompact?: boolean
+  goalRounds?: GoalRoundsMode
   statusLine?: readonly string[]
   statusLineCommand?: { command: string; intervalSeconds?: number }
 }
@@ -60,12 +64,17 @@ function isApprovalMode(value: unknown): value is ApprovalMode {
   return typeof value === 'string' && (APPROVAL_MODES as readonly string[]).includes(value)
 }
 
+function isGoalRoundsMode(value: unknown): value is GoalRoundsMode {
+  return value === 'timeline' || value === 'quiet'
+}
+
 export class FxSettings {
   private mode: ApprovalMode
   private auto: boolean
   private themeValue: ThemeSetting
   private notifyValue: NotifyMode
   private autoCompactValue: boolean
+  private goalRoundsValue: GoalRoundsMode
   private statusLineValue: StatusLineItemId[]
   private statusLineExplicit: boolean
   private statusLineCommandValue: StatusLineCommandConfig | undefined
@@ -80,6 +89,7 @@ export class FxSettings {
     this.themeValue = loaded.theme
     this.notifyValue = loaded.notify
     this.autoCompactValue = loaded.autoCompact
+    this.goalRoundsValue = loaded.goalRounds
     this.statusLineValue = loaded.statusLine
     this.statusLineExplicit = loaded.statusLineExplicit
     this.statusLineCommandValue = loaded.statusLineCommand
@@ -103,6 +113,10 @@ export class FxSettings {
 
   get autoCompact(): boolean {
     return this.autoCompactValue
+  }
+
+  get goalRounds(): GoalRoundsMode {
+    return this.goalRoundsValue
   }
 
   /** Configured right-side items, in display order. */
@@ -145,6 +159,11 @@ export class FxSettings {
     this.save()
   }
 
+  setGoalRounds(mode: GoalRoundsMode): void {
+    this.goalRoundsValue = mode
+    this.save()
+  }
+
   setAutoCompact(enabled: boolean): void {
     this.autoCompactValue = enabled
     this.save()
@@ -175,6 +194,7 @@ export class FxSettings {
         ...(this.themeValue === DEFAULT_THEME ? {} : { theme: this.themeValue }),
         ...(this.notifyValue === DEFAULT_NOTIFY ? {} : { notify: this.notifyValue }),
         ...(this.autoCompactValue === DEFAULT_AUTO_COMPACT ? {} : { autoCompact: this.autoCompactValue }),
+        ...(this.goalRoundsValue === DEFAULT_GOAL_ROUNDS ? {} : { goalRounds: this.goalRoundsValue }),
         ...(this.statusLineExplicit ? { statusLine: [...this.statusLineValue] } : {}),
         ...(this.statusLineCommandValue !== undefined ? { statusLineCommand: { ...this.statusLineCommandValue } } : {}),
       }
@@ -191,6 +211,7 @@ function loadSettings(filePath: string): {
   theme: ThemeSetting
   notify: NotifyMode
   autoCompact: boolean
+  goalRounds: GoalRoundsMode
   statusLine: StatusLineItemId[]
   statusLineExplicit: boolean
   statusLineCommand: StatusLineCommandConfig | undefined
@@ -204,10 +225,11 @@ function loadSettings(filePath: string): {
       const theme = isThemeSetting(raw.theme) ? raw.theme : DEFAULT_THEME
       const notify = isNotifyMode(raw.notify) ? raw.notify : DEFAULT_NOTIFY
       const autoCompact = typeof raw.autoCompact === 'boolean' ? raw.autoCompact : DEFAULT_AUTO_COMPACT
+      const goalRounds = isGoalRoundsMode(raw.goalRounds) ? raw.goalRounds : DEFAULT_GOAL_ROUNDS
       const statusLineExplicit = Array.isArray(raw.statusLine)
       const statusLine = parseStatusLineItems(raw.statusLine)
       const statusLineCommand = parseStatusLineCommand(raw.statusLineCommand)
-      return { approvalMode, autoUpdate, theme, notify, autoCompact, statusLine, statusLineExplicit, statusLineCommand }
+      return { approvalMode, autoUpdate, theme, notify, autoCompact, goalRounds, statusLine, statusLineExplicit, statusLineCommand }
     }
   } catch {
     // absent or malformed file starts at the built-in defaults
@@ -218,6 +240,7 @@ function loadSettings(filePath: string): {
     theme: DEFAULT_THEME,
     notify: DEFAULT_NOTIFY,
     autoCompact: DEFAULT_AUTO_COMPACT,
+    goalRounds: DEFAULT_GOAL_ROUNDS,
     statusLine: [...DEFAULT_STATUS_LINE],
     statusLineExplicit: false,
     statusLineCommand: undefined,

@@ -27,6 +27,12 @@
 - `npm pack` 产物 106 文件，包名 `dsh-tui-fx`；本地 profile 迁移后 `fx --help` 报
   `fx-tui v0.36.5`
 - `pnpm lint` 0/0、双 tsconfig `typecheck` 0 error、`pnpm test` 383 用例、`pnpm run build` 通过
+- **已发布**：`dsh-tui-fx@0.36.5` 于 2026-11-13 上架 npm，`latest` 指向 0.36.5。首次发布
+  仍会先挂 `0.0.0-stage` 占位、随后约 5–10 分钟元数据与 tarball 就绪（这中间 `pnpm add`
+  可能撞上 tarball 的负缓存 404，重试即可）。从 registry 实测：临时 `DSH_HOME` 里
+  `dsh plugin --profile fx add dsh-tui-fx` 安装 `^0.36.5`、bundles 自动登记、`fx --help`
+  报 `v0.36.5`；`npm install -g dsh-tui-fx --prefix <临时目录>` 同样能生成 `fx`。
+  旧包 `fx-tui` 的 deprecated 标记需账号 2FA 确认后生效
 
 ## [0.36.4] - 2026-11-13
 

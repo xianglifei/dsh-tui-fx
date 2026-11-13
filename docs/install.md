@@ -64,6 +64,13 @@ fx-tui 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)�
 全部通过后告诉我 fx 已就绪，并提示我用 fx --help 查看用法。
 ```
 
+## 基座版本必须与 fx-tui 对齐
+
+fx-tui 的 `peerDependencies` 精确锁定 dsh 版本（当前 `0.2.2-rc.1`）。dsh 启动时会校验这组
+版本：不一致就打印一行 `skipping profile bundle "fx-tui"` 并**跳过整个 TUI**，而不是带病运行
+—— 看到这行警告说明该升级 fx-tui 了。升级动作、验证项与回滚步骤见
+[dsh 基座升级清单](dsh-upgrade-checklist.md)。
+
 ## 手动安装（备查）
 
 **第 1 步：安装 DeepSeek Harness 本体（dsh）。** fx-tui 是 dsh 的插件，

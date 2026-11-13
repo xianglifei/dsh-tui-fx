@@ -446,7 +446,19 @@ async function main(ctx: Context, exit: (code: number) => void | Promise<void>):
     selectModel: next => {
       // Record the durable fact first: if the session append fails, the
       // display ref must keep describing the route that is actually live.
-      agent.model.select(next)
+      // The marker tells the reducer this `model/selection` is our own write,
+      // so `/model` does not announce the user's own switch back at them.
+      store.expectOwnSelection(next)
+      try {
+        agent.model.select(next)
+      } catch (error) {
+        store.clearOwnSelection()
+        throw error
+      }
+      // The append emits its `model/selection` event synchronously; a marker
+      // still set here means no event was logged (an unchanged selection), so
+      // it must not silence the next external switch.
+      store.clearOwnSelection()
       selectionRef.current = next
     },
     historyEntries: history,

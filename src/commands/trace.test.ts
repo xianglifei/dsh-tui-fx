@@ -166,6 +166,36 @@ describe('runTrace', () => {
     expect(body).toContain('轮次 1 结束（completed）')
   })
 
+  it('labels the extension events (inbox, tools, system, goal, plan, jobs, subagents)', () => {
+    const events = [
+      sessionEvent('agent/inbox/spliced', { target: 'next-turn', start: 0, removedCount: 1, inserted: [{ id: 'm1' }, { id: 'm2' }] }, 0),
+      sessionEvent('agent/inbox/spliced', { target: 'next-step', start: 0, removedCount: 2, inserted: [], outcome: 'canceled' }, 1),
+      sessionEvent('developer/message', { turn: 1, step: 1, message: { role: 'developer', content: [{ type: 'tool-addition', toolName: 'apply_patch' }, { type: 'tool-removal', toolName: 'run_tests' }] } }, 2),
+      sessionEvent('system/message', { turn: 1, step: 1, message: { role: 'system', content: [{ type: 'text', text: '你是 fx-tui' }] } }, 3),
+      sessionEvent('model/selection', { provider: 'deepseek-official', model: 'deepseek-v4-pro', reasoningEffort: 'high' }, 4),
+      sessionEvent('goal/change', { operation: 'create', goal: { objective: '把 CI 修绿' }, roundsStarted: 3 }, 5),
+      sessionEvent('plan/mode', { active: true }, 6),
+      sessionEvent('job/registered', { job: { id: 'bash-1a2b', kind: 'bash', label: 'pnpm build', status: 'running' } }, 7),
+      sessionEvent('job/settled', { job: { id: 'bash-1a2b', kind: 'bash', label: 'pnpm build', status: 'completed', detail: 'exit code: 0' } }, 8),
+      sessionEvent('subagent/descriptor', { version: 3, mode: 'one-shot', provider: 'spawn' }, 9),
+    ]
+    const { c, log } = makeCtx({}, { events })
+
+    runTrace(c)
+
+    const body = (log.panels[0]?.lines ?? []).join('\n')
+    expect(body).toContain('队列变更 next-turn +2 −1')
+    expect(body).toContain('队列变更 next-step −2（取消）')
+    expect(body).toContain('工具目录 +apply_patch −run_tests')
+    expect(body).toContain('系统提示词 9 字')
+    expect(body).toContain('模型选择 deepseek-official/deepseek-v4-pro · effort high')
+    expect(body).toContain('目标 create「把 CI 修绿」 · 3 轮')
+    expect(body).toContain('计划模式 开启')
+    expect(body).toContain('后台任务 bash-1a2b「pnpm build」 running')
+    expect(body).toContain('后台任务 bash-1a2b「pnpm build」 completed（exit code: 0）')
+    expect(body).toContain('子代理 one-shot · spawn')
+  })
+
   it('windows the tail and says how much it dropped', () => {
     const events = Array.from({ length: 80 }, (_, seq) => sessionEvent('todo/write', { todos: [] }, seq))
     const { c, log } = makeCtx({}, { events })

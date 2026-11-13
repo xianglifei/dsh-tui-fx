@@ -13,8 +13,8 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import type { AssistantStreamFrame } from '@deepseek-ai/dsh-agent'
-import type { ContentBlock, TokenUsage, ToolResultMessage } from '@deepseek-ai/dsh-llm'
+import type { AssistantStreamFrame, ModelSelection } from '@deepseek-ai/dsh-agent'
+import type { ContentBlock, TokenUsage, ToolResultMessage, UserMessage } from '@deepseek-ai/dsh-llm'
 import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 // Declaration-merge carrier: importing these types registers the `llm/retry`
 // and `llm/retry-started` session events this reducer consumes.
@@ -198,6 +198,8 @@ export interface ToolPresenter {
 
 const FLUSH_INTERVAL_MS = 60
 const EXIT_ARM_MS = 2500
+/** Bound on the local-echo label cache; a long session cannot grow it. */
+const QUEUE_CACHE_LIMIT = 50
 const RESULT_PREVIEW_LIMIT = 800
 /** Hard cap of the retained reasoning text（head-anchored）: bounds memory
  * and the Ctrl+T panel; the char count keeps counting past it. */
@@ -213,6 +215,19 @@ export class TuiStore {
   /** Stash order across both trays, so ⌫ retracts whichever landed last. */
   private stashOrder: Array<{ kind: 'image'; ref: ImageAttachmentRef } | { kind: 'output'; id: string }> = []
   private queuedMessages: QueuedMessage[] = []
+  /** Authoritative pending inbox, folded from `agent/inbox/spliced`: the two
+   * lists dsh itself will claim (`next-turn` / `next-step`). */
+  private inboxTurn: QueuedMessage[] = []
+  private inboxStep: QueuedMessage[] = []
+  /** Local echoes plus the labels the session event cannot carry (image and
+   * `!`-output summaries). Entries drop out of the tray as soon as an inbox
+   * list holds the same id, and are pruned once promoted / recalled. */
+  private queueCache = new Map<string, QueuedMessage>()
+  /** Ids a splice removed because the driver claimed them: their labels stay
+   * cached for the promotion, but they must not render as unconfirmed echoes. */
+  private claimedQueue = new Set<string>()
+  /** The next `model/selection` event is this UI's own write. */
+  private ownSelection: ModelSelection | null = null
   private todos: TodoItem[] = []
   private childAgentCount = 0
   private verboseTranscript = false
@@ -366,6 +381,60 @@ export class TuiStore {
   /** Fold one live session event into the view state. */
   onEvent(ev: SessionEvent): void {
     switch (ev.type) {
+      case 'agent/inbox/spliced': {
+        // The durable inbox is the single source of truth for pending work:
+        // local echoes only bridge the sub-second gap until this event lands.
+        const data = ev.data
+        if (data.target !== 'next-turn' && data.target !== 'next-step') break
+        const list = data.target === 'next-step' ? this.inboxStep : this.inboxTurn
+        if (data.outcome === 'canceled') {
+          const dropped = list.length
+          list.length = 0
+          this.queueCache.clear()
+          this.claimedQueue.clear()
+          if (!this.replaying && dropped > 0) {
+            this.items.push({ kind: 'notice', tone: 'warn', text: `已丢弃排队中的 ${dropped} 条消息（轮次被中断）` })
+          }
+        } else {
+          const inserted = (data.inserted ?? []).map(message => this.queuedFrom(message, data.target))
+          const removed = list.splice(data.start, data.removedCount ?? 0, ...inserted)
+          for (const message of removed) this.claimedQueue.add(message.id)
+          for (const message of inserted) this.claimedQueue.delete(message.id)
+        }
+        this.syncQueue()
+        break
+      }
+      case 'developer/message': {
+        // Dynamic tool-catalog changes (MCP / plugin tools appearing or
+        // disappearing) are the only explanation for "the tool I used is gone".
+        const added: string[] = []
+        const removed: string[] = []
+        for (const block of ev.data.message.content) {
+          if (block.type === 'tool-addition') added.push(block.toolName)
+          else if (block.type === 'tool-removal') removed.push(block.toolName)
+        }
+        if (!this.replaying && (added.length > 0 || removed.length > 0)) {
+          this.items.push({ kind: 'notice', tone: 'info', text: toolChangeText(added, removed) })
+        }
+        break
+      }
+      case 'model/selection': {
+        // The durable selection is the route the next step uses; the status
+        // bar follows it (an earlier fix), and a change this UI did not make
+        // is worth one line — otherwise /model's own notice is the only trace.
+        const label = `${ev.data.provider}/${ev.data.model}`
+        const changed = label !== this.model
+        this.model = label
+        const own = this.ownSelection
+        this.ownSelection = null
+        if (this.replaying) break
+        if (own !== null && own.provider === ev.data.provider && own.model === ev.data.model) break
+        // Re-selecting the already-effective route is not news, and it also
+        // keeps a stale own-write marker from silencing a later real change.
+        if (!changed) break
+        this.items.push({ kind: 'notice', tone: 'info', text: `模型已由会话内其他组件切换为 ${label}（下一步生效）` })
+        break
+      }
       case 'turn/start': {
         this.phase = 'thinking'
         this.phaseDetail = ''
@@ -393,10 +462,10 @@ export class TuiStore {
         const isEcho = this.echoedId !== null && message.id === this.echoedId
         if (isEcho) this.echoedId = null
         // A queued echo's matching session event promotes it to the transcript.
-        const queuedIndex = this.queuedMessages.findIndex(q => q.id === message.id)
-        if (queuedIndex >= 0) {
-          const queued = this.queuedMessages[queuedIndex]!
-          this.queuedMessages.splice(queuedIndex, 1)
+        // The claim splice usually pulled the entry from the tray already, so
+        // the labels are looked up by id, not by tray position.
+        const queued = this.takeQueued(message.id)
+        if (queued !== undefined) {
           this.items.push({
             kind: 'user',
             text: queued.text,
@@ -548,13 +617,14 @@ export class TuiStore {
         }
         this.turnToolCalls = 0
         if (ev.data.reason.kind === 'aborted' && this.queuedMessages.length > 0) {
-          // A user cancel clears queued inbox work; reflect the drop.
+          // Fallback only: the agent normally logs the cancel as an
+          // `agent/inbox/spliced` event, which already cleared the tray.
           this.items.push({
             kind: 'notice',
             tone: 'warn',
             text: `已丢弃排队中的 ${this.queuedMessages.length} 条消息（轮次被中断）`,
           })
-          this.queuedMessages = []
+          this.resetQueueState()
         }
         const reason = ev.data.reason
         if (reason.kind === 'error') {
@@ -737,7 +807,8 @@ export class TuiStore {
     const images = opts.images ?? []
     const outputs = opts.outputs ?? []
     if (this.phase !== 'idle') {
-      this.queuedMessages.push({ id, text, images, outputs, mode: opts.mode ?? 'queue' })
+      this.queueCache.set(id, { id, text, images, outputs, mode: opts.mode ?? 'queue' })
+      this.syncQueue()
     } else {
       this.items.push({
         kind: 'user',
@@ -771,7 +842,7 @@ export class TuiStore {
     this.pendingImages = []
     this.pendingOutputs = []
     this.stashOrder = []
-    this.queuedMessages = []
+    this.resetQueueState()
     this.todos = []
     this.childAgentCount = 0
     this.turnToolCalls = 0
@@ -1062,11 +1133,81 @@ export class TuiStore {
   /** Remove one pending queued/steered message from the indicator list
    * (Alt+Up recall); undefined when the id is no longer pending. */
   removeQueued(id: string): QueuedMessage | undefined {
-    const index = this.queuedMessages.findIndex(message => message.id === id)
-    if (index < 0) return undefined
-    const [removed] = this.queuedMessages.splice(index, 1)
-    this.commit()
+    const removed = this.takeQueued(id)
+    if (removed !== undefined) this.commit()
     return removed
+  }
+
+  /** Drop one pending message from both the folded inbox and the label cache;
+   * the cached copy wins because it carries the ride-along labels. */
+  private takeQueued(id: string): QueuedMessage | undefined {
+    const cached = this.queueCache.get(id)
+    let found = cached
+    for (const list of [this.inboxTurn, this.inboxStep]) {
+      const index = list.findIndex(message => message.id === id)
+      if (index < 0) continue
+      const [removed] = list.splice(index, 1)
+      found ??= removed
+    }
+    this.queueCache.delete(id)
+    this.claimedQueue.delete(id)
+    if (found !== undefined) this.syncQueue()
+    return found
+  }
+
+  /** Rebuild the tray: durable inbox first, then echoes no event has confirmed. */
+  private syncQueue(): void {
+    const known = new Set<string>()
+    for (const message of this.inboxTurn) known.add(message.id)
+    for (const message of this.inboxStep) known.add(message.id)
+    const extras: QueuedMessage[] = []
+    for (const message of this.queueCache.values()) {
+      if (!known.has(message.id) && !this.claimedQueue.has(message.id)) extras.push(message)
+    }
+    if (this.queueCache.size > QUEUE_CACHE_LIMIT) {
+      const keep = new Set<string>(extras.map(message => message.id))
+      for (const id of this.queueCache.keys()) {
+        if (this.queueCache.size <= QUEUE_CACHE_LIMIT) break
+        if (keep.has(id) || known.has(id)) continue
+        this.queueCache.delete(id)
+        this.claimedQueue.delete(id)
+      }
+    }
+    // The cached copy carries the ride-along labels the session event cannot.
+    const display = (row: QueuedMessage): QueuedMessage => this.queueCache.get(row.id) ?? row
+    this.queuedMessages = [
+      ...this.inboxTurn.map(display),
+      ...this.inboxStep.map(display),
+      ...extras,
+    ]
+  }
+
+  private resetQueueState(): void {
+    this.queuedMessages = []
+    this.inboxTurn = []
+    this.inboxStep = []
+    this.queueCache.clear()
+    this.claimedQueue.clear()
+  }
+
+  /** Map a durable inbox message into a tray row; labels stay in the cache. */
+  private queuedFrom(message: UserMessage, target: 'next-turn' | 'next-step'): QueuedMessage {
+    return {
+      id: message.id,
+      text: blocksToText(message.content),
+      images: [],
+      outputs: [],
+      mode: target === 'next-step' ? 'steer' : 'queue',
+    }
+  }
+
+  /** Mark the next selection event as this UI's own write (see `selectModel`). */
+  expectOwnSelection(next: ModelSelection): void {
+    this.ownSelection = next
+  }
+
+  clearOwnSelection(): void {
+    this.ownSelection = null
   }
 
   /** Raw args of a pending call, for approval memory keys and prompts. */
@@ -1133,6 +1274,13 @@ function callViewTitle(view: ToolCallView | undefined): string | undefined {
     : view?.card === 'terminal' ? view.title
       : view?.card === 'diff' ? view.title
         : undefined
+}
+
+function toolChangeText(added: readonly string[], removed: readonly string[]): string {
+  const names = [...added.map(name => `+${name}`), ...removed.map(name => `−${name}`)]
+  const shown = names.slice(0, 4)
+  const rest = names.length - shown.length
+  return truncateLine(`工具目录更新：${shown.join(' ')}${rest > 0 ? ` …+${rest}` : ''}（本会话内生效）`, 160)
 }
 
 function blocksToText(content: readonly ContentBlock[]): string {

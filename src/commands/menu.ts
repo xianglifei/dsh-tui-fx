@@ -16,6 +16,7 @@ export const builtinCommands: readonly MenuEntry[] = [
   { name: 'context', description: '查看上下文水位与组成明细', kind: 'builtin' },
   { name: 'cost', description: '查看本会话累计 token 用量与缓存命中率（/tokens 同义）', kind: 'builtin' },
   { name: 'doctor', description: '环境自检（Node/路由/密钥/终端）', kind: 'builtin' },
+  { name: 'logs', description: '查看被收编的宿主 stderr 诊断（/log 同义）', kind: 'builtin' },
   { name: 'config', description: '查看 / 修改设置（权限、更新、通知、自动压缩）', kind: 'builtin' },
   { name: 'theme', description: '切换配色主题：自动 / 浅色 / 深色 / Ghostty 精选', kind: 'builtin' },
   { name: 'statusline', description: '配置状态栏条目与自定义命令', kind: 'builtin' },

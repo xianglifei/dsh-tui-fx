@@ -38,6 +38,11 @@ describe('builtinCommands', () => {
     const names = builtinCommands.map(command => command.name)
     expect(new Set(names).size).toBe(names.length)
   })
+
+  it('offers every dispatched introspection command, including /logs', () => {
+    const names = builtinCommands.map(command => command.name)
+    for (const name of ['doctor', 'logs', 'trace', 'status']) expect(names).toContain(name)
+  })
 })
 
 describe('createSkillCatalog', () => {

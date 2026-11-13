@@ -13,6 +13,7 @@ import type { Agent, ModelSelection } from '@deepseek-ai/dsh-agent'
 import type { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type { HostDiagnostic } from '../host-diagnostics.js'
+import type { JobAccess } from '../jobs.js'
 import type { FxSettings } from '../settings.js'
 import type { TuiStore } from '../store.js'
 import type { ThemeName } from '../ui/theme.js'
@@ -91,6 +92,9 @@ export interface CommandCtx {
    * the runner has already reported why.
    */
   restart(): Promise<void>
+  /** Background-job access for `/jobs`; undefined when the composition has no
+   * jobs registry, so the command can say so instead of guessing. */
+  jobs?: () => JobAccess | undefined
   /** Full-replay remount that recolors the transcript after a theme switch. */
   remountForThemeChange(): Promise<void>
   /** /update busy flag, shared with the background auto-update pass. */

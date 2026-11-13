@@ -52,6 +52,7 @@ import type {} from '@deepseek-ai/dsh-user-questions'
 
 import { ApprovalMemory } from './approval-memory.js'
 import { maybeAutoUpdate } from './auto-update.js'
+import { HostDiagnostics } from './host-diagnostics.js'
 import { FxSettings } from './settings.js'
 import { TuiStore } from './store.js'
 import type { ToolPresenter } from './store.js'
@@ -73,7 +74,13 @@ import { createCommandRunner } from './commands/index.js'
 import type { CommandCtx, SessionForkSeed } from './commands/types.js'
 import type { ToolResult } from '@deepseek-ai/dsh-tools'
 
-export const FX_TUI_VERSION = '0.36.0'
+export const FX_TUI_VERSION = '0.36.1'
+
+/** Host stderr diagnostics captured for `/doctor`. Installed at module load,
+ * before the loader mounts any sibling plugin, so a diagnostic logged before
+ * Ink takes the screen is absorbed too. `FX_TUI_STDERR_RAW=1` keeps stderr raw. */
+export const hostDiagnostics = new HostDiagnostics()
+hostDiagnostics.install()
 
 /** Idle window after launch before the one-shot background update check fires. */
 const AUTO_UPDATE_DELAY_MS = 120_000
@@ -447,6 +454,7 @@ async function main(ctx: Context, exit: (code: number) => void | Promise<void>):
     detectedTheme: () => detectedTheme,
     dshVersion: readDshVersion,
     debugLog,
+    hostDiagnostics: () => hostDiagnostics.entries(),
     submitMessage: text => actions.onSubmit(text),
     switchSession,
     startSession,
@@ -600,6 +608,8 @@ async function main(ctx: Context, exit: (code: number) => void | Promise<void>):
 async function shutdown(opts?: { respawn?: boolean }): Promise<void> {
   detachResizeRebuild()
   statusLineWatcher.dispose()
+  // Release stderr before the farewell: the terminal is no longer ours to filter.
+  hostDiagnostics.dispose()
   instance?.unmount()
   store.dispose()
   if (agent.status === 'running') {

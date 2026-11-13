@@ -6,6 +6,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { activeThemeName, themeDisplayLabel } from '../ui/theme.js'
 import { notifyModeLabel } from '../notify.js'
+import { truncateLine } from '../text.js'
 import type { CommandCtx } from './types.js'
 import { currentSessionTitle } from './session.js'
 import { modeLabel } from './config.js'
@@ -150,6 +151,22 @@ export async function runDoctor(c: CommandCtx): Promise<void> {
   check(true, '输入历史', `${c.historyEntries.length} 条（$DSH_HOME/fx-tui-input-history.json）`)
   check(process.stdout.isTTY === true, '终端', `TTY=${process.stdout.isTTY === true ? '是' : '否'} · ${process.stdout.columns ?? '?'}×${process.stdout.rows ?? '?'} · TERM=${process.env.TERM ?? '(未设置)'}`)
   check(existsSync(process.cwd()), '工作目录', process.cwd())
+  // Host stderr diagnostics: plugins without a logger exporter print their
+  // notices straight to stderr, which the sink keeps off the screen. /doctor is
+  // where they stay readable, so show the tail rather than the whole ring.
+  const host = c.hostDiagnostics()
+  const hostTotal = host.reduce((sum, entry) => sum + entry.count, 0)
+  if (hostTotal === 0) {
+    check(true, '宿主诊断', '未捕获（stderr 直通）')
+  } else {
+    check(true, '宿主诊断', `${hostTotal} 条已收编，不占画面 · FX_TUI_STDERR_RAW=1 可还原直通`)
+    for (const entry of host.slice(-5)) {
+      const stamp = new Date(entry.at).toTimeString().slice(0, 8)
+      const repeat = entry.count > 1 ? ` ×${entry.count}` : ''
+      lines.push(`    ${stamp} [${entry.tag}] ${truncateLine(entry.text, 96)}${repeat}`)
+    }
+    if (host.length > 5) lines.push(`    …（共 ${host.length} 条记录，显示最近 5 条）`)
+  }
   c.store.addPanel('环境自检 /doctor', lines)
 }
 

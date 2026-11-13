@@ -177,7 +177,13 @@ fx --resume <id>                    # 恢复会话
 - **上下文明细**：`/context` 展示水位 + 组成估算（系统提示/工具定义/对话消息）
   + 最近一次请求的 provider 用量报告
 - **环境自检**：`/doctor` 逐项检查 Node/平台/dsh 版本/模型路由与能力/凭证/
-  设置与历史文件/终端/工作目录
+  设置与历史文件/终端/工作目录，并列出**宿主诊断**（见下）
+- **宿主诊断收编**：没有 logger 导出通道的 dsh 插件会把诊断直接写 stderr
+  （典型如 `[llm-deepseek-api-key] model listing … loaded 2 model(s)`）。
+  fx-tui 在启动时就接住带插件 tag 的行，不再让它们裸落在 Ink 画面上；
+  `/doctor` 的「宿主诊断」显示最近 5 条与重复次数，`FX_TUI_STDERR_RAW=1 fx`
+  可还原为直通（排查插件问题时用）。其它 stderr 内容（崩溃栈、子进程输出）
+  一律原样透传
 - **TODO 面板**：`todo_write` 任务列表实时渲染（◐ 进行中 / ☐ 待办 / ☑ 完成）
 - **subagent 徽标**：子 agent 运行时状态栏显示 `🌱×N`
 - **会话导出**：`/export` 导出为 Markdown 时间线；`fx --resume <id>` 恢复会话

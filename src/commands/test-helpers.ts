@@ -160,6 +160,7 @@ export function makeCtx(
     detectedTheme: () => null,
     dshVersion: () => '0.0.0-test',
     debugLog: () => {},
+    hostDiagnostics: () => [],
     submitMessage: (text: string): void => {
       log.submitted.push(text)
     },

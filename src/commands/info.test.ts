@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { buildRestartArgs, runContext, runCost, runHelp, runInit, runRestart, runStatus } from './info.js'
+import { buildRestartArgs, runContext, runCost, runDoctor, runHelp, runInit, runRestart, runStatus } from './info.js'
 import { cleanupTempHomes, makeBusy, makeCtx, sessionEvent } from './test-helpers.js'
 
 afterEach(cleanupTempHomes)
@@ -200,6 +200,30 @@ describe('/restart', () => {
 
     expect(log.restartCount).toBe(1)
     expect(log.notices[0]).toContain('重启')
+  })
+})
+
+describe('/doctor', () => {
+  it('reports a raw stderr channel when nothing was captured', async () => {
+    const { c, log } = makeCtx()
+    await runDoctor(c)
+
+    const body = log.panels[0]?.lines.join('\n') ?? ''
+    expect(log.panels[0]?.title).toContain('/doctor')
+    expect(body).toContain('宿主诊断：未捕获（stderr 直通）')
+  })
+
+  it('lists the recent captured lines with repeat counts and the escape hatch', async () => {
+    const { c, log } = makeCtx({
+      hostDiagnostics: () => [
+        { at: Date.UTC(2026, 10, 13, 7, 18, 2), tag: 'llm-deepseek-api-key', text: 'model listing loaded 2 model(s), skipped 0 row(s)', count: 2 },
+      ],
+    })
+    await runDoctor(c)
+
+    const body = log.panels[0]?.lines.join('\n') ?? ''
+    expect(body).toContain('宿主诊断：2 条已收编，不占画面 · FX_TUI_STDERR_RAW=1 可还原直通')
+    expect(body).toContain('[llm-deepseek-api-key] model listing loaded 2 model(s), skipped 0 row(s) ×2')
   })
 })
 

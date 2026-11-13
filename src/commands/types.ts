@@ -12,6 +12,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { Agent, ModelSelection } from '@deepseek-ai/dsh-agent'
 import type { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
+import type { HostDiagnostic } from '../host-diagnostics.js'
 import type { FxSettings } from '../settings.js'
 import type { TuiStore } from '../store.js'
 import type { ThemeName } from '../ui/theme.js'
@@ -64,6 +65,8 @@ export interface CommandCtx {
   detectedTheme(): ThemeName | null
   /** dsh kernel version ('' when unreadable). */
   dshVersion(): string
+  /** Host stderr diagnostics captured while the TUI owned the terminal; /doctor lists them. */
+  hostDiagnostics(): readonly HostDiagnostic[]
   /** fx-tui debug channel; a no-op without FX_TUI_DEBUG. */
   debugLog(label: string, data?: unknown): void
   /** Submit a plain user message (the /skill-name gesture passthrough). */

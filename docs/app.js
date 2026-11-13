@@ -77,7 +77,7 @@
     document.body.appendChild(area);
     area.select();
     var ok = false;
-    try { ok = document.execCommand('copy'); } catch (e) {}
+    try { ok = document.execCommand('copy'); } catch (_e) {}
     document.body.removeChild(area);
     return ok;
   }
@@ -105,6 +105,7 @@
             if (label) label.textContent = '复制';
             button.classList.remove('is-done');
           }, 1600);
+          return undefined;
         }).catch(function () {
           if (label) label.textContent = '复制失败';
           window.clearTimeout(timer);
@@ -117,5 +118,5 @@
   }
 
   // 所有初始化完成；head 里的兜底计时器看到它就不再强制显示内容。
-  window.__siteReady = true;
+  window['__siteReady'] = true;
 })();

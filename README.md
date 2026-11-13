@@ -1,5 +1,7 @@
 # fx-tui
 
+> 线上介绍页：<https://xianglifei.github.io/dsh-tui-fx/>
+
 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（dsh）的交互式终端界面 —— 一个树外 bundle 插件，基于 Ink（React）渲染。
 
 ![fx-tui 界面截图](docs/fx-tui.png)

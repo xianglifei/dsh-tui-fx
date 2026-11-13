@@ -47,7 +47,9 @@ const TOOL_RESULT = (callId: string, text: string): unknown => ({
   type: 'tool/result',
   data: {
     message: {
-      content: [{ type: 'tool-result', toolCallId: callId, content: [{ type: 'text', text }] }],
+      role: 'tool',
+      toolCallId: callId,
+      content: [{ type: 'text', text }],
     },
   },
 })

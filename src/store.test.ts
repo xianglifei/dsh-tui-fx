@@ -388,7 +388,7 @@ describe('TuiStore tool detail panel (Ctrl+O)', () => {
     const store = new TuiStore('s1', 'model', presenter)
     store.onEvent(ev('tool/call', { callId: 'c1', name: 'bash', arguments: '{"command":"echo hi"}' }, 1))
     store.onEvent(ev('tool/result', {
-      message: { content: [{ type: 'tool-result', toolCallId: 'c1', content: [{ type: 'text', text: 'x' }] }] },
+      message: { role: 'tool', toolCallId: 'c1', content: [{ type: 'text', text: 'x' }] },
     }, 2))
     return store
   }
@@ -407,11 +407,44 @@ describe('TuiStore tool detail panel (Ctrl+O)', () => {
     const store = new TuiStore('s1', 'model')
     store.onEvent(ev('tool/call', { callId: 'c2', name: 'web_fetch', arguments: '{}' }, 1))
     store.onEvent(ev('tool/result', {
-      message: { content: [{ type: 'tool-result', toolCallId: 'c2', content: [{ type: 'text', text: 'body' }] }] },
+      message: { role: 'tool', toolCallId: 'c2', content: [{ type: 'text', text: 'body' }] },
     }, 2))
     store.toggleVerboseToolDetail()
 
     const panel = store.getSnapshot().items.at(-1)
     expect(panel?.kind === 'panel' && panel.lines[0]).toBe('body')
+  })
+})
+
+describe('TuiStore tool result failure flags', () => {
+  it('a message-flagged failure without an error object still marks the call failed', () => {
+    const store = new TuiStore('s1', 'model')
+    store.onEvent(ev('tool/call', { callId: 'c1', name: 'bash', arguments: '{}' }, 1))
+    store.onEvent(ev('tool/result', {
+      message: { role: 'tool', toolCallId: 'c1', isError: true, content: [{ type: 'text', text: 'boom' }] },
+    }, 2))
+
+    expect(store.getSnapshot().items.at(-1)).toMatchObject({ kind: 'tool', name: 'bash', ok: false })
+  })
+
+  it('an error object alongside a clean message still marks the call failed', () => {
+    const store = new TuiStore('s1', 'model')
+    store.onEvent(ev('tool/call', { callId: 'c1', name: 'bash', arguments: '{}' }, 1))
+    store.onEvent(ev('tool/result', {
+      message: { role: 'tool', toolCallId: 'c1', content: [{ type: 'text', text: '' }] },
+      error: { name: 'ToolError', code: 'EFAIL' },
+    }, 2))
+
+    expect(store.getSnapshot().items.at(-1)).toMatchObject({ kind: 'tool', ok: false })
+  })
+
+  it('a plain success stays ok', () => {
+    const store = new TuiStore('s1', 'model')
+    store.onEvent(ev('tool/call', { callId: 'c1', name: 'bash', arguments: '{}' }, 1))
+    store.onEvent(ev('tool/result', {
+      message: { role: 'tool', toolCallId: 'c1', content: [{ type: 'text', text: 'ok' }] },
+    }, 2))
+
+    expect(store.getSnapshot().items.at(-1)).toMatchObject({ kind: 'tool', ok: true })
   })
 })

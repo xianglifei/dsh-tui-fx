@@ -460,10 +460,13 @@ export class TuiStore {
         const callId = toolResultCallId(data.message)
         const pending = callId !== undefined ? this.pendingTools.get(callId) : undefined
         if (callId !== undefined) this.pendingTools.delete(callId)
+        // `data.error` is optional and only legal alongside `isError: true`;
+        // the message flag alone must mark the failure.
+        const failed = data.message.isError === true || data.error !== undefined
         const view = pending !== undefined && this.presenter !== undefined
           ? this.presenter.presentResult(pending.name, pending.args, {
               content: resultBlocks(data.message),
-              isError: data.error !== undefined,
+              isError: failed,
               meta: data.meta,
             })
           : undefined
@@ -474,7 +477,7 @@ export class TuiStore {
           name: pending?.name ?? '(unknown tool)',
           title: view?.title ?? pending?.title ?? (pending?.name ?? '(unknown tool)'),
           args: pending?.args ?? '',
-          ok: data.error === undefined,
+          ok: !failed,
           result: toolResultText(data.message, data.error),
           elapsedMs: pending !== undefined ? Math.max(0, ev.time - pending.startedAt) : 0,
           exitCode: exit?.exitCode,
@@ -1152,20 +1155,15 @@ function blocksToReasoningText(content: readonly ContentBlock[]): string {
 
 export { blocksToText as blocksToTextOf }
 
+/** dsh 0.2 keeps a tool result as a first-class `tool` message: the blocks are
+ * already the result payload (no `tool-result` wrapper) and the identity moved
+ * to the message. */
 function resultBlocks(message: ToolResultMessage): readonly ContentBlock[] {
-  const blocks: ContentBlock[] = []
-  for (const block of message.content as readonly ContentBlock[]) {
-    if (block.type === 'tool-result') blocks.push(...block.content)
-    else blocks.push(block)
-  }
-  return blocks
+  return message.content
 }
 
 function toolResultCallId(message: ToolResultMessage): string | undefined {
-  for (const block of message.content as readonly ContentBlock[]) {
-    if (block.type === 'tool-result') return block.toolCallId
-  }
-  return undefined
+  return message.toolCallId
 }
 
 export { toolResultCallId as toolResultCallIdOf }
@@ -1173,13 +1171,7 @@ export { toolResultCallId as toolResultCallIdOf }
 function toolResultText(message: ToolResultMessage, error: { name: string; code: string } | undefined): string {
   const parts: string[] = []
   for (const block of message.content as readonly ContentBlock[]) {
-    if (block.type === 'tool-result') {
-      for (const inner of block.content) {
-        if (inner.type === 'text') parts.push(inner.text)
-      }
-    } else if (block.type === 'text') {
-      parts.push(block.text)
-    }
+    if (block.type === 'text') parts.push(block.text)
   }
   if (parts.length === 0 && error !== undefined) parts.push(`${error.name}: ${error.code}`)
   return truncate(parts.join('\n'), RESULT_PREVIEW_LIMIT)

@@ -448,3 +448,159 @@ describe('TuiStore tool result failure flags', () => {
     expect(store.getSnapshot().items.at(-1)).toMatchObject({ kind: 'tool', ok: true })
   })
 })
+
+// -- Inbox-driven queue -------------------------------------------------------
+
+const inboxMessage = (id: string, text: string): unknown => ({ id, source: { kind: 'user' }, content: [{ type: 'text', text }] })
+
+const SPLICE = (
+  target: 'next-turn' | 'next-step',
+  start: number,
+  removedCount: number,
+  inserted: readonly unknown[],
+  time: number,
+  outcome?: 'canceled',
+): SessionEvent => ev('agent/inbox/spliced', { target, start, removedCount, inserted, ...(outcome !== undefined ? { outcome } : {}) }, time)
+
+describe('TuiStore agent/inbox/spliced', () => {
+  it('folds a next-turn enqueue into the tray', () => {
+    const store = new TuiStore('s1', 'model')
+    store.onEvent(SPLICE('next-turn', 0, 0, [inboxMessage('m1', '等会再看这个')], 1))
+
+    expect(store.getSnapshot().queuedMessages).toEqual([{ id: 'm1', text: '等会再看这个', images: [], outputs: [], mode: 'queue' }])
+  })
+
+  it('renders a next-step enqueue as a steering row', () => {
+    const store = new TuiStore('s1', 'model')
+    store.onEvent(SPLICE('next-step', 0, 0, [inboxMessage('m2', '换个方向')], 1))
+
+    expect(store.getSnapshot().queuedMessages[0]).toMatchObject({ id: 'm2', mode: 'steer' })
+  })
+
+  it('a claim empties the tray but keeps the ride-along labels on promotion', () => {
+    const store = new TuiStore('s1', 'model')
+    store.onEvent(TURN_START)
+    store.echoUser('m9', '继续', { outputs: ['$ ls · 退出 0 · 5 字符'], mode: 'steer' })
+    store.onEvent(SPLICE('next-step', 0, 0, [inboxMessage('m9', '继续')], 2))
+    // The driver claims the message before the turn's user event.
+    store.onEvent(SPLICE('next-step', 0, 1, [], 3))
+    expect(store.getSnapshot().queuedMessages).toEqual([])
+
+    store.onEvent(ev('user/message', { id: 'm9', source: { kind: 'user' }, content: [{ type: 'text', text: '继续' }] }, 4))
+    expect(store.getSnapshot().items.at(-1)).toMatchObject({ kind: 'user', text: '继续', outputs: ['$ ls · 退出 0 · 5 字符'] })
+  })
+
+  it('a canceled splice clears the queue once and says why', () => {
+    const store = new TuiStore('s1', 'model')
+    store.onEvent(SPLICE('next-turn', 0, 0, [inboxMessage('a', '一'), inboxMessage('b', '二')], 1))
+    store.onEvent(SPLICE('next-turn', 0, 2, [], 2, 'canceled'))
+
+    const snapshot = store.getSnapshot()
+    expect(snapshot.queuedMessages).toEqual([])
+    expect(snapshot.items.at(-1)).toMatchObject({ kind: 'notice', text: '已丢弃排队中的 2 条消息（轮次被中断）' })
+  })
+
+  it('replay folds the inbox silently, so --resume still shows pending work', () => {
+    const store = new TuiStore('s1', 'model')
+    store.replay([
+      TURN_START,
+      USER_MSG,
+      ev('agent/inbox/spliced', { target: 'next-turn', start: 0, removedCount: 0, inserted: [inboxMessage('m5', '恢复后继续')] }, 4),
+      TURN_END,
+    ])
+    store.finishReplay()
+
+    expect(store.getSnapshot().queuedMessages.map(message => message.text)).toEqual(['恢复后继续'])
+    expect(store.getSnapshot().items.some(item => item.kind === 'notice')).toBe(false)
+  })
+
+  it('does not duplicate a local echo once the enqueue event confirms it', () => {
+    const store = new TuiStore('s1', 'model')
+    store.onEvent(TURN_START)
+    store.echoUser('m7', '排队一条')
+    expect(store.getSnapshot().queuedMessages).toHaveLength(1)
+
+    store.onEvent(SPLICE('next-turn', 0, 0, [inboxMessage('m7', '排队一条')], 2))
+    expect(store.getSnapshot().queuedMessages).toHaveLength(1)
+  })
+})
+
+describe('TuiStore developer/message', () => {
+  const DEV = (blocks: readonly unknown[], time: number): SessionEvent =>
+    ev('developer/message', { turn: 1, step: 1, message: { role: 'developer', content: blocks } }, time)
+
+  it('surfaces tool additions and removals as one line', () => {
+    const store = new TuiStore('s1', 'model')
+    store.onEvent(DEV([{ type: 'tool-addition', toolName: 'apply_patch' }, { type: 'tool-removal', toolName: 'run_tests' }], 1))
+
+    expect(store.getSnapshot().items.at(-1)).toMatchObject({
+      kind: 'notice',
+      text: '工具目录更新：+apply_patch −run_tests（本会话内生效）',
+    })
+  })
+
+  it('collapses more than four names', () => {
+    const store = new TuiStore('s1', 'model')
+    const blocks = ['a', 'b', 'c', 'd', 'e'].map(toolName => ({ type: 'tool-addition', toolName }))
+    store.onEvent(DEV(blocks, 1))
+
+    const text = (store.getSnapshot().items.at(-1) as { text: string }).text
+    expect(text).toContain('…+1')
+  })
+
+  it('stays quiet for pure-text developer messages', () => {
+    const store = new TuiStore('s1', 'model')
+    store.onEvent(DEV([{ type: 'text', text: 'a reminder' }], 1))
+
+    expect(store.getSnapshot().items).toEqual([])
+  })
+
+  it('stays quiet while replaying a resumed session', () => {
+    const store = new TuiStore('s1', 'model')
+    store.replay([DEV([{ type: 'tool-addition', toolName: 'x' }], 1)])
+    store.finishReplay()
+
+    expect(store.getSnapshot().items).toEqual([])
+  })
+})
+
+describe('TuiStore model/selection', () => {
+  const SELECTION = (provider: string, model: string, time: number): SessionEvent =>
+    ev('model/selection', { provider, model }, time)
+
+  it('announces a selection the UI did not make and follows it in the label', () => {
+    const store = new TuiStore('s1', 'deepseek-official/deepseek-flash')
+    store.onEvent(SELECTION('deepseek-official', 'deepseek-v4-pro', 1))
+
+    expect(store.getSnapshot().model).toBe('deepseek-official/deepseek-v4-pro')
+    expect(store.getSnapshot().items.at(-1)).toMatchObject({
+      kind: 'notice',
+      text: '模型已由会话内其他组件切换为 deepseek-official/deepseek-v4-pro（下一步生效）',
+    })
+  })
+
+  it('stays silent for this UI\'s own /model write', () => {
+    const store = new TuiStore('s1', 'deepseek-official/deepseek-flash')
+    store.expectOwnSelection({ provider: 'deepseek-official', model: 'deepseek-v4-pro' })
+    store.onEvent(SELECTION('deepseek-official', 'deepseek-v4-pro', 1))
+
+    expect(store.getSnapshot().model).toBe('deepseek-official/deepseek-v4-pro')
+    expect(store.getSnapshot().items).toEqual([])
+  })
+
+  it('stays silent when an external write re-selects the effective route', () => {
+    const store = new TuiStore('s1', 'deepseek-official/deepseek-flash')
+    store.onEvent(SELECTION('deepseek-official', 'deepseek-flash', 1))
+
+    expect(store.getSnapshot().items).toEqual([])
+  })
+
+  it('stays silent while replaying, but still adopts the recorded route', () => {
+    const store = new TuiStore('s1', 'stale/label')
+    store.replay([SELECTION('deepseek-official', 'deepseek-v4-pro', 1)])
+    store.finishReplay()
+
+    expect(store.getSnapshot().model).toBe('deepseek-official/deepseek-v4-pro')
+    expect(store.getSnapshot().items).toEqual([])
+  })
+})

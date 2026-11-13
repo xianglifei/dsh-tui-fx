@@ -113,6 +113,12 @@ function elapsed(ms: number): string {
 }
 
 function labelOf(event: SessionEvent): string {
+  const known = labelOfKnown(event)
+  return known !== '' ? known : labelOfExtension(event.type, event.data)
+}
+
+/** Core event vocabulary this build compiles against. */
+function labelOfKnown(event: SessionEvent): string {
   switch (event.type) {
     case 'turn/start':
       return `轮次 ${event.data.turn} 开始`
@@ -136,7 +142,76 @@ function labelOf(event: SessionEvent): string {
     case 'tool/result':
       return `工具结果 ${event.data.error === undefined ? '完成' : `失败 ${event.data.error.code}`}`
     default:
-      return event.type
+      return ''
+  }
+}
+
+/** Events contributed by packages fx-tui does not depend on at the type level
+ * (inbox, goal, plan, jobs, subagent). They still arrive on the session log, so
+ * the trace reads them by wire name and fields defensively: a label must never
+ * throw because a plugin changed a payload shape. */
+function labelOfExtension(type: string, data: unknown): string {
+  const d = (data ?? {}) as Record<string, unknown>
+  switch (type) {
+    case 'agent/inbox/spliced': {
+      const target = d.target === 'next-step' ? 'next-step' : 'next-turn'
+      const inserted = Array.isArray(d.inserted) ? d.inserted.length : 0
+      const removed = typeof d.removedCount === 'number' ? d.removedCount : 0
+      const counts = [inserted > 0 ? `+${inserted}` : '', removed > 0 ? `−${removed}` : ''].filter(part => part !== '')
+      return `队列变更 ${target}${counts.length > 0 ? ` ${counts.join(' ')}` : ''}${d.outcome === 'canceled' ? '（取消）' : ''}`
+    }
+    case 'developer/message': {
+      const message = d.message as { content?: readonly unknown[] } | undefined
+      const names: string[] = []
+      for (const block of message?.content ?? []) {
+        const entry = block as { type?: string; toolName?: string }
+        if (entry.type === 'tool-addition' && entry.toolName !== undefined) names.push(`+${entry.toolName}`)
+        else if (entry.type === 'tool-removal' && entry.toolName !== undefined) names.push(`−${entry.toolName}`)
+      }
+      return names.length > 0 ? `工具目录 ${names.join(' ')}` : '开发者消息'
+    }
+    case 'system/message': {
+      const message = d.message as { content?: readonly unknown[] } | undefined
+      const text = (message?.content ?? [])
+        .map(block => (block as { type?: string; text?: string }))
+        .filter(block => block.type === 'text' && typeof block.text === 'string')
+        .map(block => block.text ?? '')
+        .join('')
+      return text === '' ? '系统提示词（空）' : `系统提示词 ${text.length} 字`
+    }
+    case 'model/selection': {
+      const provider = typeof d.provider === 'string' ? d.provider : '?'
+      const model = typeof d.model === 'string' ? d.model : '?'
+      const effort = typeof d.reasoningEffort === 'string' ? ` · effort ${d.reasoningEffort}` : ''
+      return `模型选择 ${provider}/${model}${effort}`
+    }
+    case 'goal/change': {
+      const operation = typeof d.operation === 'string' ? d.operation : '?'
+      const goal = d.goal as { objective?: unknown } | undefined
+      const objective = typeof goal?.objective === 'string' ? `「${preview(goal.objective)}」` : ''
+      const rounds = typeof d.roundsStarted === 'number' ? ` · ${d.roundsStarted} 轮` : ''
+      return `目标 ${operation}${objective}${rounds}`
+    }
+    case 'plan/mode':
+      return `计划模式 ${d.active === true ? '开启' : '关闭'}`
+    case 'job/registered':
+    case 'job/settled': {
+      const job = d.job as { id?: unknown; kind?: unknown; label?: unknown; status?: unknown; detail?: unknown } | undefined
+      const id = typeof job?.id === 'string' ? job.id : '?'
+      const label = typeof job?.label === 'string' ? `「${preview(job.label)}」` : ''
+      const status = typeof job?.status === 'string' ? ` ${job.status}` : ''
+      const detail = typeof job?.detail === 'string' ? `（${preview(job.detail)}）` : ''
+      return `后台任务 ${id}${label}${status}${detail}`
+    }
+    case 'subagent/descriptor': {
+      const mode = typeof d.mode === 'string' ? d.mode : '?'
+      const provider = typeof d.provider === 'string' ? d.provider : '?'
+      return `子代理 ${mode} · ${provider}`
+    }
+    case 'subagent/catalog':
+      return '子代理目录更新'
+    default:
+      return type
   }
 }
 

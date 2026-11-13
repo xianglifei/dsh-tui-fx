@@ -3,6 +3,42 @@
 本项目的所有显著变更记录于此。版本格式遵循 [SemVer](https://semver.org/)，
 条目参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [0.37.0] - 2026-11-13
+
+### 事件补全：界面看见的排队 / 工具 / 模型 / 系统提示词都以会话事实为准
+
+dsh 0.2.2 之后，排队消息的插入与取消、动态工具增删、模型切换、系统提示词各有一条
+会话事件；fx-tui 之前把它们全部走 `default` 分支丢掉。这一版四类事件都接上，并给
+会话回放加了回归基线。
+
+- **排队托盘改以 `agent/inbox/spliced` 为真相源**：本地乐观回声保留（提交立刻有反馈），
+  插入与取消以事件为准。`--resume` 之后日志里仍在排队的消息现在会显示；别的组件取消
+  队列会立刻反映为 `已丢弃排队中的 N 条消息（轮次被中断）`。Alt+↑ 取回时图片 / `!`
+  输出的标签不再依赖托盘位置，改按消息 id 找回。
+- **动态工具增删可见**：`developer/message` 的 `tool-addition` / `tool-removal` 折叠成
+  一行 `工具目录更新：+a −b（本会话内生效）`，超过四个名字折叠为 `…+N`；纯文本的
+  开发者消息不进时间线（回放同样静默）。
+- **外部切换模型会说一声**：`model/selection` 现在同时是状态栏标签的真相源；只有
+  **不是** 本 UI 发起的切换才提示，`/model` 自己不会双重通知。
+- **`/export` 不再丢系统提示词**：正文不变，追加「系统提示词快照」（`<details>` 折叠、
+  标注 seq 与时间、多版本时说明变更次数）与「工具目录变更」两个附录；没有对应事件的
+  会话不产生空章节。
+- **`/trace` 补标签**：队列变更、工具目录、系统提示词、模型选择、目标、计划模式、
+  后台任务、子代理都有人话摘要；未知事件仍按原样显示，不会抛错。
+
+### 测试
+
+- 新增会话日志回放：`src/testing/replay.ts` 把日志折叠成稳定 JSON 快照，
+  `scripts/replay-session.mjs` 用于手工查看或 `--update` 重写快照；三份 fixture
+  （普通回合 / 新事件 / 中断）与 `.expected.json` 进 `pnpm test`，改动渲染必须先解释 diff。
+- 408 个用例（+25），`pnpm test` 约 1.9s；lint 0/0、双 tsconfig `typecheck` 0 error。
+
+### 验证
+
+- `pnpm lint` 0/0、`pnpm typecheck` 0 error、`pnpm test` **408 passed**、`pnpm run build` 通过
+- L2 回放：`pnpm build && node scripts/replay-session.mjs test/fixtures/session-logs/new-events.jsonl`
+  与提交里的 `.expected.json` 一致
+
 ## [0.36.6] - 2026-11-13
 
 ### 发布链路：npm trusted publishing 上线（本版用于验证）

@@ -1,6 +1,6 @@
 # fx-tui
 
-> 线上介绍页：<https://xianglifei.github.io/dsh-tui-fx/> · npm：[`fx-tui`](https://www.npmjs.com/package/fx-tui)
+> 线上介绍页：<https://xianglifei.github.io/dsh-tui-fx/> · npm：[`dsh-tui-fx`](https://www.npmjs.com/package/dsh-tui-fx)
 
 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（dsh）的交互式终端界面 —— 一个树外 bundle 插件，基于 Ink（React）渲染。
 
@@ -26,8 +26,8 @@
 也可以自己两条命令装完（npm 正式包）：
 
 ```sh
-npm install -g fx-tui               # 装 CLI，提供 fx 命令
-dsh plugin --profile fx add fx-tui  # 注册为 dsh 的 fx profile（版本自动对齐）
+npm install -g dsh-tui-fx           # 装 CLI，提供 fx 命令
+dsh plugin --profile fx add dsh-tui-fx  # 注册为 dsh 的 fx profile（版本自动对齐）
 fx                                  # 启动
 ```
 

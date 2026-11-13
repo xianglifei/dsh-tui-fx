@@ -3,6 +3,31 @@
 本项目的所有显著变更记录于此。版本格式遵循 [SemVer](https://semver.org/)，
 条目参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [0.36.5] - 2026-11-13
+
+### 改名：npm 包 `fx-tui` → `dsh-tui-fx`
+
+仓库在 11 月 8 日就已改名为 `dsh-tui-fx`，但包的 `name` 从项目早期一直是 `fx-tui`，
+结果 npm 页、安装命令与仓库名对不上；而且 `dsh-` 前缀才是 dsh 生态里可检索的名字
+（官方包全是 `@deepseek-ai/dsh-*`，GUI「添加插件」的示例也带 `dsh-`）。发布不足一小时、
+没有真实用户，此时改成本最低。
+
+- `package.json.name`、`cordis.patch.yml` 里 insert 的 `id`/`name`、README / 安装指南 /
+  介绍页的安装命令与 npm 链接，全部改为 `dsh-tui-fx`
+- **包名即 bundle 身份**，装过旧包的 profile 需要重装：
+  `dsh plugin --profile fx remove fx-tui` → `dsh plugin --profile fx add dsh-tui-fx`
+  （本机 profile 已迁移）
+- **保持不变**：产品显示名 `fx-tui`（banner / 告别语 / 通知标题）、CLI 命令 `fx`、
+  dsh profile 名 `fx`、`$DSH_HOME/fx-tui-*.json` 下的设置/历史/审批文件名（改名会让
+  老用户丢配置）
+- 旧包 `fx-tui@0.36.4` 标 deprecated 并指向新名
+
+### 验证
+
+- `npm pack` 产物 106 文件，包名 `dsh-tui-fx`；本地 profile 迁移后 `fx --help` 报
+  `fx-tui v0.36.5`
+- `pnpm lint` 0/0、双 tsconfig `typecheck` 0 error、`pnpm test` 383 用例、`pnpm run build` 通过
+
 ## [0.36.4] - 2026-11-13
 
 ### 分发：fx-tui 上架 npm，安装从「克隆 + 构建」变两条命令

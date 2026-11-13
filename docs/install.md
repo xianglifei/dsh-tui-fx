@@ -45,8 +45,8 @@ fx-tui 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)�
    并 chmod 600 ~/.dsh/.credentials.yaml）。
 
 5. 安装 fx-tui（npm 正式包，两条命令）：
-   npm install -g fx-tui          # 提供 fx 命令
-   dsh plugin --profile fx add fx-tui   # 注册为 dsh 的 fx profile
+   npm install -g dsh-tui-fx      # 提供 fx 命令
+   dsh plugin --profile fx add dsh-tui-fx   # 注册为 dsh 的 fx profile
    安装时若提示 missing peer @deepseek-ai/*，可忽略（这些包由 dsh 本体提供）。
 
    若 npm 不可用（网络/私服），退回源码安装：
@@ -97,12 +97,12 @@ chmod 600 ~/.dsh/.credentials.yaml
 **第 3 步：安装 fx-tui（npm）：**
 
 ```sh
-npm install -g fx-tui              # 装 CLI，提供 fx 命令
-dsh plugin --profile fx add fx-tui # 装 dsh 插件（会自动登记到 fx profile 的 bundles）
+npm install -g dsh-tui-fx          # 装 CLI，提供 fx 命令
+dsh plugin --profile fx add dsh-tui-fx  # 装 dsh 插件（自动登记到 fx profile 的 bundles）
 fx --help                          # 应输出 fx-tui 的帮助与版本号
 ```
 
-想锁定版本可写成 `fx-tui@0.36.4`。安装日志里若出现
+想锁定版本可写成 `dsh-tui-fx@0.36.5`。安装日志里若出现
 `missing peer @deepseek-ai/*`，属预期——`@deepseek-ai/cordis` / `dsh-agent` /
 `dsh-llm` 由 dsh 本体提供，版本对齐由 dsh 在加载插件时校验。
 

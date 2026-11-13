@@ -19,5 +19,5 @@
     - id: tool-ask-user
       name: '@deepseek-ai/dsh-tool-ask-user'
 
-    - id: fx-tui
-      name: fx-tui
+    - id: dsh-tui-fx
+      name: dsh-tui-fx

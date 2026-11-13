@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { buildRestartArgs, runContext, runCost, runDoctor, runHelp, runInit, runRestart, runStatus } from './info.js'
+import { buildRestartArgs, meetsNodeFloor, runContext, runCost, runDoctor, runHelp, runInit, runLogs, runRestart, runStatus } from './info.js'
 import { cleanupTempHomes, makeBusy, makeCtx, sessionEvent } from './test-helpers.js'
 
 afterEach(cleanupTempHomes)
@@ -210,20 +210,75 @@ describe('/doctor', () => {
 
     const body = log.panels[0]?.lines.join('\n') ?? ''
     expect(log.panels[0]?.title).toContain('/doctor')
-    expect(body).toContain('宿主诊断：未捕获（stderr 直通）')
+    expect(body).toContain('· 宿主诊断：未捕获（stderr 直通）')
   })
 
-  it('lists the recent captured lines with repeat counts and the escape hatch', async () => {
+  it('tallies captured diagnostics and points at /logs instead of dumping lines', async () => {
+    const at = Date.UTC(2026, 10, 13, 7, 18, 2)
     const { c, log } = makeCtx({
       hostDiagnostics: () => [
-        { at: Date.UTC(2026, 10, 13, 7, 18, 2), tag: 'llm-deepseek-api-key', text: 'model listing loaded 2 model(s), skipped 0 row(s)', count: 2 },
+        { at, tag: 'llm-deepseek-api-key', text: 'model listing loaded 2 model(s), skipped 0 row(s)', count: 2 },
       ],
     })
     await runDoctor(c)
 
     const body = log.panels[0]?.lines.join('\n') ?? ''
-    expect(body).toContain('宿主诊断：2 条已收编，不占画面 · FX_TUI_STDERR_RAW=1 可还原直通')
-    expect(body).toContain('[llm-deepseek-api-key] model listing loaded 2 model(s), skipped 0 row(s) ×2')
+    const stamp = new Date(at).toTimeString().slice(0, 8)
+    expect(body).toContain(`· 宿主诊断：2 条已收编 · 最近 ${stamp} · /logs 查看`)
+    expect(body).not.toContain('[llm-deepseek-api-key]')
+  })
+
+  it('checks Node against the engines floor (24.9), not the old 22', async () => {
+    const { c, log } = makeCtx()
+    await runDoctor(c)
+
+    const body = log.panels[0]?.lines.join('\n') ?? ''
+    expect(body).toContain(`（要求 ≥24.9.0）`)
+    expect(body).not.toContain('≥22.19')
+  })
+})
+
+describe('meetsNodeFloor', () => {
+  it('compares major and minor against 24.9', () => {
+    expect(meetsNodeFloor('24.9.0')).toBe(true)
+    expect(meetsNodeFloor('24.10.1')).toBe(true)
+    expect(meetsNodeFloor('25.0.0')).toBe(true)
+    expect(meetsNodeFloor('26.5.1')).toBe(true)
+    expect(meetsNodeFloor('24.8.9')).toBe(false)
+    expect(meetsNodeFloor('23.11.0')).toBe(false)
+    expect(meetsNodeFloor('22.19.0')).toBe(false)
+  })
+})
+
+describe('/logs', () => {
+  it('says the channel is quiet when nothing was captured', () => {
+    const { c, log } = makeCtx()
+    runLogs(c)
+
+    expect(log.panels).toEqual([])
+    expect(log.notices[0]).toContain('宿主日志为空')
+  })
+
+  it('renders the ring newest-first with repeat counts and the total', () => {
+    const old = Date.UTC(2026, 10, 13, 7, 18, 2)
+    const recent = Date.UTC(2026, 10, 13, 7, 28, 2)
+    const { c, log } = makeCtx({
+      hostDiagnostics: () => [
+        { at: old, tag: 'llm-deepseek-api-key', text: 'model listing loaded 2 model(s), skipped 0 row(s)', count: 1 },
+        { at: recent, tag: 'llm-deepseek-account', text: 'model listing failed (offline); using the bundled catalog', count: 3 },
+      ],
+    })
+    runLogs(c)
+
+    expect(log.panels[0]?.title).toBe('宿主日志 · 4 条')
+    const lines = log.panels[0]?.lines ?? []
+    const failure = lines.findIndex(line => line.includes('[llm-deepseek-account]') && line.includes('×3'))
+    const success = lines.findIndex(line => line.includes('[llm-deepseek-api-key]'))
+    expect(failure).toBeGreaterThan(-1)
+    // Newest first: the repeated failure sits above the older success line.
+    expect(failure).toBeLessThan(success)
+    expect(lines[0]).toContain('共 4 条（去重后 2 条）')
+    expect(lines.join('\n')).toContain('FX_TUI_STDERR_RAW=1')
   })
 })
 

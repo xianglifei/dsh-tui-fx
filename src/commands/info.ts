@@ -25,7 +25,7 @@ export function runHelp(c: CommandCtx): void {
     '  !! 前缀则仅本地查看；首词补全命令、其余补全路径；空输入框 ⌫ 撤销最后一条暂存、⌥⌫ 清空',
     '',
     '内置命令：/help 帮助 · /status 运行状态 · /sessions [关键词] 切换会话 · /rename <标题> 重命名 ·',
-    '  /model 模型 · /effort 推理强度 · /btw <问题> 侧问 · /context 上下文明细 · /cost 会话用量 · /doctor 自检 ·',
+    '  /model 模型 · /effort 推理强度 · /btw <问题> 侧问 · /context 上下文明细 · /cost 会话用量 · /doctor 自检 · /logs 宿主日志 ·',
     '  /config 设置（权限/更新/通知/自动压缩） · /theme 主题 · /statusline 状态栏 · /export 导出 · /copy 复制最后回复 ·',
     '  /edit 外部编辑器 · /image <路径…> 附加图片 · /init 生成 AGENTS.md 骨架 · /restart 重启并恢复当前会话 ·',
     '  /update 升级自身 · /exit 退出',
@@ -123,13 +123,28 @@ export async function runContext(c: CommandCtx): Promise<void> {
   c.store.addPanel('已加载上下文', lines)
 }
 
+/** Runtime floor mirrored from `package.json` engines (dsh 0.2.2 requires 24.9). */
+const REQUIRED_NODE = '24.9.0'
+
+/** True when `version` clears {@link REQUIRED_NODE}; major/minor only, patches ignored. */
+export function meetsNodeFloor(version: string): boolean {
+  const [major = 0, minor = 0] = version.split('.').map(part => Number.parseInt(part, 10))
+  const [needMajor = 0, needMinor = 0] = REQUIRED_NODE.split('.').map(part => Number.parseInt(part, 10))
+  return major > needMajor || (major === needMajor && minor >= needMinor)
+}
+
+/** Wall-clock stamp for captured host diagnostics (local time, HH:MM:SS). */
+function hostLogStamp(at: number): string {
+  return new Date(at).toTimeString().slice(0, 8)
+}
+
 /** `/doctor`: startup facts as ✓/✗/· lines; failures point at the fix. */
 export async function runDoctor(c: CommandCtx): Promise<void> {
   const lines: string[] = []
   const check = (ok: boolean | null, label: string, detail: string): void => {
     lines.push(`${ok === true ? '✓' : ok === false ? '✗' : '·'} ${label}${detail !== '' ? `：${detail}` : ''}`)
   }
-  check(parseInt(process.versions.node.split('.')[0] ?? '0', 10) >= 22, 'Node', `${process.version}（要求 ≥22.19）`)
+  check(meetsNodeFloor(process.versions.node), 'Node', `${process.version}（要求 ≥${REQUIRED_NODE}）`)
   check(true, '平台', `${process.platform}/${process.arch}${process.platform === 'darwin' ? '' : '（fx-tui 仅在 macOS 上验证）'}`)
   const dshVersion = c.dshVersion()
   check(dshVersion !== '', 'dsh 内核', dshVersion !== '' ? dshVersion : '版本号不可读（不影响使用）')
@@ -151,23 +166,46 @@ export async function runDoctor(c: CommandCtx): Promise<void> {
   check(true, '输入历史', `${c.historyEntries.length} 条（$DSH_HOME/fx-tui-input-history.json）`)
   check(process.stdout.isTTY === true, '终端', `TTY=${process.stdout.isTTY === true ? '是' : '否'} · ${process.stdout.columns ?? '?'}×${process.stdout.rows ?? '?'} · TERM=${process.env.TERM ?? '(未设置)'}`)
   check(existsSync(process.cwd()), '工作目录', process.cwd())
-  // Host stderr diagnostics: plugins without a logger exporter print their
-  // notices straight to stderr, which the sink keeps off the screen. /doctor is
-  // where they stay readable, so show the tail rather than the whole ring.
+  // Host diagnostics have their own surface (/logs): a plugin writing to stderr
+  // is routine, so /doctor only tallies the ring and points there for detail.
   const host = c.hostDiagnostics()
   const hostTotal = host.reduce((sum, entry) => sum + entry.count, 0)
-  if (hostTotal === 0) {
-    check(true, '宿主诊断', '未捕获（stderr 直通）')
-  } else {
-    check(true, '宿主诊断', `${hostTotal} 条已收编，不占画面 · FX_TUI_STDERR_RAW=1 可还原直通`)
-    for (const entry of host.slice(-5)) {
-      const stamp = new Date(entry.at).toTimeString().slice(0, 8)
-      const repeat = entry.count > 1 ? ` ×${entry.count}` : ''
-      lines.push(`    ${stamp} [${entry.tag}] ${truncateLine(entry.text, 96)}${repeat}`)
-    }
-    if (host.length > 5) lines.push(`    …（共 ${host.length} 条记录，显示最近 5 条）`)
-  }
+  const lastHost = host.at(-1)
+  check(null, '宿主诊断', lastHost === undefined
+    ? '未捕获（stderr 直通）'
+    : `${hostTotal} 条已收编 · 最近 ${hostLogStamp(lastHost.at)} · /logs 查看`)
   c.store.addPanel('环境自检 /doctor', lines)
+}
+
+/** Lines /logs renders at most; the sink itself keeps 200. */
+const LOGS_SHOWN = 50
+
+/** `/logs`: the captured host diagnostics, newest first. This is the log
+ * surface — /doctor only tallies it. Successful model-listing syncs are
+ * routine reading; failures and dropped models are what a reader comes for. */
+export function runLogs(c: CommandCtx): void {
+  const entries = c.hostDiagnostics()
+  if (entries.length === 0) {
+    c.store.addNotice('宿主日志为空：没有插件把诊断写到 stderr（FX_TUI_STDERR_RAW=1 时全部直通，不进这里）')
+    return
+  }
+  const total = entries.reduce((sum, entry) => sum + entry.count, 0)
+  const shown = entries.slice(-LOGS_SHOWN).toReversed()
+  const lines: string[] = [
+    `共 ${total} 条（去重后 ${entries.length} 条）· 不占画面 · 环形缓冲上限 200`,
+    '',
+  ]
+  for (const entry of shown) {
+    const repeat = entry.count > 1 ? ` ×${entry.count}` : ''
+    lines.push(`${hostLogStamp(entry.at)} [${entry.tag}] ${truncateLine(entry.text, 100)}${repeat}`)
+  }
+  if (entries.length > shown.length) lines.push(`…（只显示最近 ${shown.length} 条）`)
+  lines.push(
+    '',
+    '成功同步是常态，可忽略；出现 failed、模型被丢弃之类的行才需要处理。',
+    'FX_TUI_STDERR_RAW=1 启动可让 stderr 原样直通（排查插件时用）',
+  )
+  c.store.addPanel(`宿主日志 · ${total} 条`, lines)
 }
 
 /** `/init`: drop a generic AGENTS.md skeleton into the working directory so

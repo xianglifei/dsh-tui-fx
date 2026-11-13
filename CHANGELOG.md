@@ -3,6 +3,41 @@
 本项目的所有显著变更记录于此。版本格式遵循 [SemVer](https://semver.org/)，
 条目参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [0.36.4] - 2026-11-13
+
+### 分发：fx-tui 上架 npm，安装从「克隆 + 构建」变两条命令
+
+插件项目过去只能 `git clone` → `pnpm install && build` → `dsh plugin add $(pwd)` →
+再手动把 `bin/fx` 拷进 PATH。对使用者来说这是四步手工活，升级还得回目录 `git pull`
+重构建。这一版把包发到 npm：
+
+```sh
+npm install -g fx-tui               # 装 CLI（提供 fx 命令）
+dsh plugin --profile fx add fx-tui  # 装 dsh 插件，自动登记进 fx profile 的 bundles
+```
+
+**manifest 补全**：补 `license: MIT`、`author`、`repository` / `homepage` / `bugs`、
+`keywords`、`publishConfig.access: public`；`files` 加入 `CHANGELOG.md`；新增
+`prepack: tsc -p tsconfig.json`，保证 tarball 里的 `lib/` 永远是发布那一刻的源码产物，
+不会带上本地陈旧构建。
+
+**peerDependencies 标 optional**：`@deepseek-ai/cordis` / `dsh-agent` / `dsh-llm`
+由 dsh 本体提供，pnpm 默认会报 `missing peer` 甚至尝试另装一份 dsh；标 optional 只
+消掉这条误导性告警，**版本门禁不受影响**——dsh 仍读 `peerDependencies` 做精确校验，
+不匹配时照旧 `skipping profile bundle "fx-tui"`。
+
+**文档**：`docs/install.md` 与 README 改为 npm 优先，源码安装降为
+「开发 / 贡献者 / npm 不可用」路径，并说明 `/update` 只适用于源码安装。
+
+### 验证
+
+- `npm pack` 产物 106 文件：`bin/fx`、`lib/**`、`cordis.patch.yml`、README、LICENSE、
+  CHANGELOG，232.9 kB
+- **端到端**：临时 `DSH_HOME` 里用 tarball 走 `dsh plugin --profile fx add` 完整安装 →
+  manifest 自动写入 `dsh.profile.bundles: ["@deepseek-ai/dsh-base", "fx-tui"]` →
+  `fx --help` 输出 `fx-tui v0.36.4`，无 peer 告警
+- `pnpm lint` 0/0、双 tsconfig `typecheck` 0 error、`pnpm test` 383 用例、`pnpm run build` 通过
+
 ## [0.36.3] - 2026-11-13
 
 ### 修复：`/logs` 补进斜杠菜单

@@ -44,20 +44,21 @@ fx-tui 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)�
    然后替我创建（mkdir -p ~/.dsh，写入 DEEPSEEK_API_KEY: sk-xxx，
    并 chmod 600 ~/.dsh/.credentials.yaml）。
 
-5. 克隆并构建 fx-tui：
+5. 安装 fx-tui（npm 正式包，两条命令）：
+   npm install -g fx-tui          # 提供 fx 命令
+   dsh plugin --profile fx add fx-tui   # 注册为 dsh 的 fx profile
+   安装时若提示 missing peer @deepseek-ai/*，可忽略（这些包由 dsh 本体提供）。
+
+   若 npm 不可用（网络/私服），退回源码安装：
    git clone https://github.com/xianglifei/dsh-tui-fx.git ~/fx-tui
    cd ~/fx-tui && pnpm install && pnpm run build
-
-6. 安装为 dsh 的 fx profile（树外插件，官方机制）：
    dsh plugin --profile fx add "$(pwd)"
-
-7. 安装 fx 直达命令（复制启动脚本到 PATH 目录）：
    macOS：cp bin/fx /opt/homebrew/bin/fx
    Linux：sudo cp bin/fx /usr/local/bin/fx
 
-8. 验证，把每条命令的实际输出告诉我：
-   fx --help     # 应输出 fx-tui 的帮助（若提示 dsh 未安装或 profile 未装，
-                 # 说明第 3/6 步没成功，回到对应步骤排查）
+6. 验证，把每条命令的实际输出告诉我：
+   fx --help     # 应输出 fx-tui 的帮助与版本号（若提示 dsh 未安装或 profile
+                 # 未装，说明第 3/5 步没成功，回到对应步骤排查）
    fx            # 应进入交互式界面；输入 /status 可查看运行状态；
                  # 按 Ctrl+C 两次退出
 
@@ -93,7 +94,20 @@ EOF
 chmod 600 ~/.dsh/.credentials.yaml
 ```
 
-**第 3 步：安装 fx-tui：**
+**第 3 步：安装 fx-tui（npm）：**
+
+```sh
+npm install -g fx-tui              # 装 CLI，提供 fx 命令
+dsh plugin --profile fx add fx-tui # 装 dsh 插件（会自动登记到 fx profile 的 bundles）
+fx --help                          # 应输出 fx-tui 的帮助与版本号
+```
+
+想锁定版本可写成 `fx-tui@0.36.4`。安装日志里若出现
+`missing peer @deepseek-ai/*`，属预期——`@deepseek-ai/cordis` / `dsh-agent` /
+`dsh-llm` 由 dsh 本体提供，版本对齐由 dsh 在加载插件时校验。
+
+<details>
+<summary>从源码安装（开发 / 贡献者 / npm 不可用时）</summary>
 
 ```sh
 git clone https://github.com/xianglifei/dsh-tui-fx.git && cd dsh-tui-fx
@@ -101,6 +115,11 @@ pnpm install && pnpm run build
 dsh plugin --profile fx add "$(pwd)"
 cp bin/fx /opt/homebrew/bin/fx   # 或任意 PATH 目录（Linux 常用 /usr/local/bin）
 ```
+
+改动源码后 `pnpm run build` 即可生效（profile 软链到这份 checkout）；
+`/update` 只会快进 git 克隆的安装，不适用于 npm 安装。
+
+</details>
 
 > `fx` 启动脚本自带防呆检测：dsh 未安装或 fx profile 未装时会给出对应的
 > 修复命令，而不是裸报错。

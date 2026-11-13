@@ -1,7 +1,27 @@
 {
   "name": "fx-tui",
-  "version": "0.36.3",
+  "version": "0.36.4",
   "description": "Interactive terminal surface for DeepSeek Harness (dsh) — an out-of-tree TUI bundle powered by Ink.",
+  "license": "MIT",
+  "author": "felix <xianglifei@outlook.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xianglifei/dsh-tui-fx.git"
+  },
+  "homepage": "https://xianglifei.github.io/dsh-tui-fx/",
+  "bugs": {
+    "url": "https://github.com/xianglifei/dsh-tui-fx/issues"
+  },
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "deepseek",
+    "tui",
+    "terminal",
+    "ink",
+    "cli",
+    "plugin"
+  ],
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -11,7 +31,8 @@
   "files": [
     "bin",
     "lib",
-    "cordis.patch.yml"
+    "cordis.patch.yml",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -19,12 +40,16 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
     "lint": "oxlint --deny-warnings",
     "lint:fix": "oxlint --fix",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepack": "tsc -p tsconfig.json"
   },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
     }
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "engines": {
     "node": ">=24.9.0"
@@ -33,6 +58,17 @@
     "@deepseek-ai/cordis": "~4.1.0",
     "@deepseek-ai/dsh-agent": "0.2.2-rc.1",
     "@deepseek-ai/dsh-llm": "0.2.2-rc.1"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-agent": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-llm": {
+      "optional": true
+    }
   },
   "dependencies": {
     "chalk": "^6.0.0",

@@ -19,7 +19,15 @@
 请读取 https://raw.githubusercontent.com/xianglifei/dsh-tui-fx/main/docs/install.md ，严格按其中的步骤帮我把 fx-tui 完整装好并验证可用；任何一步失败就停下，把错误原文完整告诉我，不要自行猜测或跳过。
 ```
 
-详细步骤与手动安装备查：[docs/install.md](docs/install.md)。
+也可以自己两条命令装完（npm 正式包）：
+
+```sh
+npm install -g fx-tui               # 装 CLI，提供 fx 命令
+dsh plugin --profile fx add fx-tui  # 注册为 dsh 的 fx profile（版本自动对齐）
+fx                                  # 启动
+```
+
+详细步骤、源码安装与排障：[docs/install.md](docs/install.md)。
 
 ## 使用
 

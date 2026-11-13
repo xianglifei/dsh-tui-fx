@@ -102,7 +102,7 @@ dsh plugin --profile fx add dsh-tui-fx  # 装 dsh 插件（自动登记到 fx pr
 fx --help                          # 应输出 fx-tui 的帮助与版本号
 ```
 
-想锁定版本可写成 `dsh-tui-fx@0.37.0`。安装日志里若出现
+想锁定版本可写成 `dsh-tui-fx@0.38.0`。安装日志里若出现
 `missing peer @deepseek-ai/*`，属预期——`@deepseek-ai/cordis` / `dsh-agent` /
 `dsh-llm` 由 dsh 本体提供，版本对齐由 dsh 在加载插件时校验。
 

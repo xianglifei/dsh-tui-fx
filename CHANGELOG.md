@@ -3,6 +3,38 @@
 本项目的所有显著变更记录于此。版本格式遵循 [SemVer](https://semver.org/)，
 条目参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [0.38.0] - 2026-11-13
+
+### 后台任务与子代理有了界面；测试第一次能驱动真 Agent
+
+dsh-base 早就挂了 `dsh-jobs-local` / `dsh-tool-jobs` / `dsh-subagent`，但 fx-tui 一个
+字节都没接：后台任务只在模型的工具结果里出现，子代理只有一个"存在几个"的计数。这一版
+把两件事都做成可观察的，并补上真正的集成测试。
+
+- **状态行**：`⚙×N` 是运行中/停止中的后台任务数；`🌱×N` 改为只数 **正在运行** 的子
+  代理——以前只要子会话存在就一直计数，一个干完活的 continuable 子代理看起来像卡住。
+- **`/jobs`**：名册（12 行上限、按活跃优先）、`/jobs <id 前缀>` 看保留输出与结算、
+  `/jobs kill <id 前缀>` 取消；前缀有歧义或无匹配都有明确提示。没有 jobs 服务时直接说
+  "当前组合没有后台任务服务"，不会落到"未知命令"。
+- **结算播报**：完成 / 失败 / 取消各一行；模型已经用 `job_output` 收走的结算
+  （`awaited`）不重复播报；回合结束时仍有任务在跑会提示一次，同一数量不重复。
+- **`/agents`**：子代理名册（mode / 标题 / 运行状态 / 已运行时长），`/agents <id 前缀>`
+  看详情；可续会话指到 `/resume`，one-shot 说明结论在父会话的工具结果里。
+- **集成测试**：`src/testing/agent-harness.ts` 在私有 cordis Context 里挂真 Session /
+  Agent / 工具执行器，配一个脚本化假模型，跑完整回合。6 条用例：文本回合的事件序列、
+  事件折叠成 transcript、真实工具成功、未知工具失败、模型切换后下一请求的路由、供给方
+  错误变成 error 回合。`pnpm test:integration`，CI 独立 job，无需网络与凭据。
+
+### 未做（有意）
+
+- `workflow` 工具的专属卡片：通用工具卡已经显示调用与结果，收益不足以单独做（R6 P2）。
+- 子代理"完成"摘要：`subagent` 工具的结果本身就在时间线里，再播报一次是重复（R3.3 P2）。
+
+### 验证
+
+- `pnpm lint` 0/0、`pnpm typecheck` 0 error、`pnpm test` **433 passed**、`pnpm test:integration` **6 passed**、`pnpm run build` 通过
+- 集成层单次约 0.1s，整体仍在 3s 内
+
 ## [0.37.0] - 2026-11-13
 
 ### 事件补全：界面看见的排队 / 工具 / 模型 / 系统提示词都以会话事实为准

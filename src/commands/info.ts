@@ -128,7 +128,9 @@ export async function runDoctor(c: CommandCtx): Promise<void> {
   const check = (ok: boolean | null, label: string, detail: string): void => {
     lines.push(`${ok === true ? '✓' : ok === false ? '✗' : '·'} ${label}${detail !== '' ? `：${detail}` : ''}`)
   }
-  check(parseInt(process.versions.node.split('.')[0] ?? '0', 10) >= 22, 'Node', `${process.version}（要求 ≥22.19）`)
+  // Keep this floor in step with package.json engines: dsh 0.2.2 requires 24.9.
+  const [nodeMajor = 0, nodeMinor = 0] = process.versions.node.split('.').map(part => Number.parseInt(part, 10))
+  check(nodeMajor > 24 || (nodeMajor === 24 && nodeMinor >= 9), 'Node', `${process.version}（要求 ≥24.9.0）`)
   check(true, '平台', `${process.platform}/${process.arch}${process.platform === 'darwin' ? '' : '（fx-tui 仅在 macOS 上验证）'}`)
   const dshVersion = c.dshVersion()
   check(dshVersion !== '', 'dsh 内核', dshVersion !== '' ? dshVersion : '版本号不可读（不影响使用）')

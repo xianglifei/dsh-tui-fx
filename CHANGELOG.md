@@ -3,6 +3,19 @@
 本项目的所有显著变更记录于此。版本格式遵循 [SemVer](https://semver.org/)，
 条目参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [0.36.3] - 2026-11-13
+
+### 修复：`/logs` 补进斜杠菜单
+
+0.36.2 加了 `/logs`，但漏了 `builtinCommands` 这一处 —— 命令能敲、`/help` 里有，
+只有输入 `/` 弹出的补全菜单看不到它。本版补上该条目（`menu.test.ts` 同时钉住
+`doctor / logs / trace / status` 都必须在菜单里），并仍是 `/log` 同义。
+
+### 验证
+
+- `pnpm lint` 0 warning / 0 error；双 tsconfig `typecheck` 0 error；`pnpm test`
+  **383 用例**全绿；`pnpm run build` 通过
+
 ## [0.36.2] - 2026-11-13
 
 ### 新增：`/logs` —— 被收编的宿主诊断有了自己的出口

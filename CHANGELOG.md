@@ -3,6 +3,65 @@
 本项目的所有显著变更记录于此。版本格式遵循 [SemVer](https://semver.org/)，
 条目参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [0.36.0] - 2026-11-13
+
+### 功能：dsh 基座 0.1.5-rc.2 → 0.2.2-rc.1，顺带修掉两处静默失效
+
+本机 host 已跑到 **`0.2.2-rc.1`**（npm `latest` 同此版本），跨了 `0.1.x → 0.2.x`
+一个大版本。隔离探针实跑 `tsc`：相对 0.1.5-rc.2 产生 **10 个编译错误、归因
+2 类 API**；真正危险的不是这 10 个错误，而是两类**编译期和启动期都看不见**的
+失效，本版一并修掉。
+
+**插件版本门禁（新增，最先撞上）**：dsh 0.2.2 在装配 profile 时校验插件
+`package.json` —— 没有 `engines.dsh` 时，每个 `@deepseek-ai/dsh-*` peer 都必须
+等于当前运行版本；不一致就打印一行 `skipping profile bundle` 并**跳过整个
+bundle**。用户看到的是「`fx` 进去没有界面」，不是报错。本版因此把 3 个 peer
+继续精确锁在 `0.2.2-rc.1`：下次 dsh 升级时宁可拒绝加载并给出看得见的 warning，
+也不带病运行。代价是每次基座升级要同步一次版本号（固定动作见升级清单）。
+
+**模型选择变成会话日志里的持久事实**：`ModelSelectionRef` 与双参
+`installModelSelection()` 删除，改由 `agent.model.select()` 写入
+`model/selection` 事件，`agent.options` 退化为不可变回退值。旧写法即使修好
+编译（改 arity）也会「切了但没切」；本版新增 `selectModel()` 单一写入口
+（**先写会话、再改展示**，写失败时标签仍描述真实路由）、监听 `model/selection`
+回流、`syncSelection()` 在恢复会话后反填，并用 `liveAgentOptions()` 让
+`/model` 在 `/clear` 与会话切换后仍然生效。`saveDefaultSelection` 不再吞异常，
+`/model`、`/effort` 的提示语按真实保存结果措辞。
+
+**工具结果成为一等公民 `tool` 消息**：`ContentBlock` 里的 `tool-result` 包装块
+删除，`toolCallId` / `isError` 上提到消息本身。`resultBlocks` /
+`toolResultCallId` / `toolResultText` 相应重写；失败判定改看 `message.isError`
+—— 这其实是 0.1.5 时代就存在的老毛病（失败但未携带 `error` 对象的合法结果
+会被显示成成功），本版顺手修掉并补 3 个用例钉死。
+
+### 依赖面
+
+- 19 个 `@deepseek-ai/dsh-*` devDeps、3 个 peerDeps → `0.2.2-rc.1`
+- `@deepseek-ai/cordis` `4.0.2`（此前刻意 pin 死，见 `f9dc7d6`）→ `~4.1.0`：
+  基座强制，4.0.3+ 的 `fiber.update()` 同步化已包含在内；实测 fx-tui 仅挂
+  2 个 waterfall（审批、提问），签名与返回 Promise 的语义未变
+- `engines.node` `>=22.19` → **`>=24.9.0`**（dsh 0.2.2 硬要求），CI 同步到
+  Node 24；lockfile 以 pnpm 11 重生成（`--frozen-lockfile` 实测可装）
+
+### 数据与回滚（用户可见）
+
+- 会话日志格式 `v0 → v4`：打开旧会话时**旁生成** `session.v4.jsonl.zstd`，
+  原文件保留，因此历史会话可读、可回滚
+- **唯一不可逆点**：升级后新建的会话只有 v4 文件，旧基座（0.1.5）读不了；
+  升级前请备份 `~/.dsh/sessions`，步骤见
+  [dsh 基座升级清单](docs/dsh-upgrade-checklist.md)
+
+### 验证
+
+- `pnpm install --frozen-lockfile`、`oxlint` 0 warning、双 tsconfig
+  `typecheck` 0 error、vitest **368 用例**（33 文件）、`tsc build` 全绿
+- 真机装配：临时 `DSH_HOME` + 本机 dsh `0.2.2-rc.1` 启动本版构建，**无门禁
+  warning**，banner 渲染出 `fx-tui v0.36.0 · dsh 0.2.2-rc.1`
+- 旧会话兼容：取 0.1.5 时代写下的 v0 会话，新版打开后旁生成 v4 文件，两套
+  store 回放事件均不抛错
+- 待本机补验：交互层（沙箱禁 `/dev/ptmx`，`tmux` 起不来）与真实模型回合
+  （流式、计费）——按升级清单的冒烟项执行
+
 ## [0.35.0] - 2026-09-21
 
 ### 功能：思考过程可折叠展示（Ctrl+T）——推理内容不再只有一行摘要

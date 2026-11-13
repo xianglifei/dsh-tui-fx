@@ -75,7 +75,7 @@ import { createCommandRunner } from './commands/index.js'
 import type { CommandCtx, SessionForkSeed } from './commands/types.js'
 import type { ToolResult } from '@deepseek-ai/dsh-tools'
 
-export const FX_TUI_VERSION = '0.38.0'
+export const FX_TUI_VERSION = '0.39.0'
 
 /** Host stderr diagnostics captured for `/doctor`. Installed at module load,
  * before the loader mounts any sibling plugin, so a diagnostic logged before

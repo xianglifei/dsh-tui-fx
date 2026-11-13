@@ -37,6 +37,11 @@ dsh plugin --profile fx add fx-tui  # 装 dsh 插件，自动登记进 fx profil
   manifest 自动写入 `dsh.profile.bundles: ["@deepseek-ai/dsh-base", "fx-tui"]` →
   `fx --help` 输出 `fx-tui v0.36.4`，无 peer 告警
 - `pnpm lint` 0/0、双 tsconfig `typecheck` 0 error、`pnpm test` 383 用例、`pnpm run build` 通过
+- **已发布**：`fx-tui@0.36.4` 于 2026-11-13 上架 npm（首次发布时 npm 会先后展示
+  `0.0.0-stage` 占位、约两分钟后换成真实版本）。从 registry 实测：临时 `DSH_HOME` 里
+  `dsh plugin --profile fx add fx-tui` 安装 `^0.36.4`、bundles 自动登记、`fx --help`
+  报 `v0.36.4`；`npm install -g fx-tui --prefix <临时目录>` 也能正确生成 `fx` 命令。
+  README、安装指南与介绍页均已切到 npm 路径
 
 ## [0.36.3] - 2026-11-13
 

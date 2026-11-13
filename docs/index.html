@@ -495,14 +495,12 @@
           <div class="install-step">
             <div class="install-num mono">2</div>
             <div class="install-body">
-              <h3>克隆、构建、注册</h3>
-              <p><code>dsh plugin</code> 是官方树外插件机制；最后一步把 <code>fx</code> 放进 PATH。</p>
+              <h3>两条命令，从 npm 装</h3>
+              <p><code>fx-tui</code> 已发布到 npm；<code>dsh plugin</code> 是官方树外插件机制，会自动把它登记进 fx profile 的 <code>bundles</code>。<a href="https://www.npmjs.com/package/fx-tui" target="_blank" rel="noreferrer">npm 包页</a> · 源码安装见<a href="https://github.com/xianglifei/dsh-tui-fx/blob/main/docs/install.md" target="_blank" rel="noreferrer">安装指南</a>。</p>
               <div class="code code-stack">
-                <code><span class="code-line">git clone https://github.com/xianglifei/dsh-tui-fx.git ~/fx-tui</span><span class="code-line">cd ~/fx-tui &amp;&amp; pnpm install &amp;&amp; pnpm run build</span><span class="code-line">dsh plugin --profile fx add "$(pwd)"</span><span class="code-line">cp bin/fx /opt/homebrew/bin/fx</span><span class="code-line">fx</span></code>
-                <button class="copy-btn" type="button" data-copy="git clone https://github.com/xianglifei/dsh-tui-fx.git ~/fx-tui
-cd ~/fx-tui && pnpm install && pnpm run build
-dsh plugin --profile fx add &quot;$(pwd)&quot;
-cp bin/fx /opt/homebrew/bin/fx
+                <code><span class="code-line">npm install -g fx-tui</span><span class="code-line">dsh plugin --profile fx add fx-tui</span><span class="code-line">fx</span></code>
+                <button class="copy-btn" type="button" data-copy="npm install -g fx-tui
+dsh plugin --profile fx add fx-tui
 fx" aria-label="复制命令"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>复制</span></button>
               </div>
             </div>

@@ -32,10 +32,14 @@ export async function listModelChoices(c: CommandCtx): Promise<void> {
   const [provider, ...rest] = chosen.split('/')
   const model = rest.join('/')
   if (provider === undefined || model === '') return
-  c.selectionRef.current = { provider, model }
+  c.selectModel({ provider, model })
   c.store.setModel(`${provider}/${model}`)
   c.store.addNotice(`模型已切换为 ${provider}/${model}（下一步请求生效）`)
-  await c.saveDefaultSelection({ provider, model })
+  try {
+    await c.saveDefaultSelection({ provider, model })
+  } catch (error) {
+    c.store.addNotice(`存为启动默认失败：${error instanceof Error ? error.message : String(error)}`, 'warn')
+  }
 }
 
 /** `/effort`: picker over the model's adapter-owned effort tiers, or a
@@ -62,7 +66,7 @@ export async function runEffort(c: CommandCtx, arg: string): Promise<void> {
       c.store.addNotice(`未知档位：${raw}（可用：${reasoning.efforts.map(effort => effort.id).join(' / ')}）`, 'warn')
       return
     }
-    applyEffort(c, current, matched.id, matched.name)
+    await applyEffort(c, current, matched.id, matched.name)
     return
   }
   if (raw.toLowerCase() === 'status') {
@@ -79,11 +83,16 @@ export async function runEffort(c: CommandCtx, arg: string): Promise<void> {
   })))
   if (chosen === undefined) return
   const effort = reasoning.efforts.find(tier => tier.name === chosen)
-  if (effort !== undefined) applyEffort(c, current, effort.id, effort.name)
+  if (effort !== undefined) await applyEffort(c, current, effort.id, effort.name)
 }
 
-function applyEffort(c: CommandCtx, current: ModelSelection, effortId: ReasoningEffortId, name: string): void {
-  c.selectionRef.current = { provider: current.provider, model: current.model, reasoningEffort: effortId }
-  void c.saveDefaultSelection({ provider: current.provider, model: current.model, reasoningEffort: effortId })
-  c.store.addNotice(`推理强度已切换为 ${name}（下一步请求生效，已存为启动默认）`)
+async function applyEffort(c: CommandCtx, current: ModelSelection, effortId: ReasoningEffortId, name: string): Promise<void> {
+  c.selectModel({ provider: current.provider, model: current.model, reasoningEffort: effortId })
+  let saved = true
+  try {
+    await c.saveDefaultSelection({ provider: current.provider, model: current.model, reasoningEffort: effortId })
+  } catch { saved = false }
+  c.store.addNotice(saved
+    ? `推理强度已切换为 ${name}（下一步请求生效，已存为启动默认）`
+    : `推理强度已切换为 ${name}（下一步请求生效；存为启动默认失败）`)
 }

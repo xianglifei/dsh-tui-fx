@@ -1,5 +1,4 @@
 import type { Context } from '@deepseek-ai/cordis'
-import type { ModelSelectionRef } from '@deepseek-ai/dsh-agent'
 import type { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import { afterEach, describe, expect, it } from 'vitest'
 import { listModelChoices, runEffort } from './model.js'
@@ -63,7 +62,7 @@ describe('/effort', () => {
       ctx: ctxWith(),
       selectionRef: {
         current: { provider: 'p', model: 'm', reasoningEffort: 'high' as ReasoningEffortId },
-      } as unknown as ModelSelectionRef,
+      },
     })
     await runEffort(c, 'status')
 
@@ -75,12 +74,12 @@ describe('/effort', () => {
   it('applies a direct id or display name, case-insensitively', async () => {
     const { c, log } = makeCtx({ ctx: ctxWith() })
     await runEffort(c, 'HIGH')
-    expect(c.selectionRef.current?.reasoningEffort).toBe('high')
+    expect(log.selected.at(-1)?.reasoningEffort).toBe('high')
     expect(log.savedSelections.at(-1)?.reasoningEffort).toBe('high')
 
     const second = makeCtx({ ctx: ctxWith() })
     await runEffort(second.c, '低')
-    expect(second.c.selectionRef.current?.reasoningEffort).toBe('low')
+    expect(second.log.selected.at(-1)?.reasoningEffort).toBe('low')
   })
 
   it('rejects an unknown tier and lists the valid ones', async () => {
@@ -92,22 +91,22 @@ describe('/effort', () => {
   })
 
   it('applies a picked tier', async () => {
-    const { c, store } = makeCtx({ ctx: ctxWith() })
+    const { c, store, log } = makeCtx({ ctx: ctxWith() })
     const pending = runEffort(c, '')
     const card = await awaitCard(store)
     await answerPick(store, card.item.options?.[1]?.label ?? '')
     await pending
 
-    expect(c.selectionRef.current?.reasoningEffort).toBe('high')
+    expect(log.selected.at(-1)?.reasoningEffort).toBe('high')
   })
 
   it('a skipped picker leaves the selection alone', async () => {
-    const { c, store } = makeCtx({ ctx: ctxWith() })
+    const { c, store, log } = makeCtx({ ctx: ctxWith() })
     const pending = runEffort(c, '')
     await skipPick(store)
     await pending
 
-    expect(c.selectionRef.current?.reasoningEffort).toBeUndefined()
+    expect(log.selected).toEqual([])
   })
 })
 
@@ -133,7 +132,7 @@ describe('/model', () => {
     await answerPick(store, card.item.options?.[0]?.label ?? '')
     await pending
 
-    expect(c.selectionRef.current).toEqual({ provider: 'p', model: 'm2' })
+    expect(log.selected.at(-1)).toEqual({ provider: 'p', model: 'm2' })
     expect(store.getSnapshot().model).toBe('p/m2')
     expect(log.savedSelections).toEqual([{ provider: 'p', model: 'm2' }])
     expect(log.notices.at(-1)).toContain('模型已切换为 p/m2')
@@ -145,6 +144,7 @@ describe('/model', () => {
     await skipPick(store)
     await pending
 
+    expect(log.selected).toEqual([])
     expect(c.selectionRef.current).toEqual({ provider: 'p', model: 'm' })
     expect(log.savedSelections).toEqual([])
   })

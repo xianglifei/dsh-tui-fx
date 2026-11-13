@@ -15,7 +15,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
-import type { Agent, ModelSelectionRef } from '@deepseek-ai/dsh-agent'
+import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type { ActiveQuestion } from '../question-bridge.js'
 import { FxSettings } from '../settings.js'
@@ -47,6 +47,8 @@ export interface CommandLog {
   /** Every `startSession` seed, in call order; `undefined` = a fresh session. */
   readonly started: (SessionForkSeed | undefined)[]
   readonly savedSelections: ModelSelection[]
+  /** Every `selectModel` call, in order — the live-agent switch path. */
+  readonly selected: ModelSelection[]
   exitCount: number
   restartCount: number
   editorCount: number
@@ -77,6 +79,7 @@ export function makeCtx(
     switched: [],
     started: [],
     savedSelections: [],
+    selected: [],
     exitCount: 0,
     restartCount: 0,
     editorCount: 0,
@@ -148,7 +151,8 @@ export function makeCtx(
     store: recording,
     agent: () => agent,
     settings,
-    selectionRef: { current: selection } as ModelSelectionRef,
+    selectionRef: { current: selection },
+    selectModel: (next): void => { log.selected.push(next) },
     selection,
     modelLabel: () => 'p/m',
     historyEntries: [],
